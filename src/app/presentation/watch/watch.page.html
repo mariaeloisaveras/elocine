@@ -1,0 +1,190 @@
+<main class="watch-page">
+  <header class="watch-header">
+    <button class="back-home" (click)="back()">
+      <ui-icon name="back" /><span>Voltar ao início</span></button
+    ><span class="brand">ELOCINE<span class="brand-dot">.</span></span
+    ><span class="watch-header-label">SEU MOMENTO DE CINEMA</span>
+  </header>
+  @if(loading()) {
+  <section class="watch-loading" role="status">
+    <span class="spinner"></span>
+    <h1>Preparando uma boa história…</h1>
+  </section>
+  } @else if(error()) {
+  <section class="empty-state" role="alert">
+    <ui-icon name="info" />
+    <h1>Não foi possível abrir este título</h1>
+    <p>{{error()}}</p>
+    <div class="hero-actions">
+      <button class="button light" (click)="retry()">
+        <ui-icon name="refresh" />Tentar novamente</button
+      ><button class="button outline" (click)="back()">Voltar ao catálogo</button>
+    </div>
+  </section>
+  } @else if(details();as details){
+  <div class="watch-layout" [class.with-episodes]="details.episodes.length && showEpisodes()">
+    <section class="watch-main">
+      @if(session();as session){<video-player
+        [playback]="session"
+        [title]="details.item.title"
+        [subtitle]="selected()?.kind==='episode'?'T'+selected()!.season+' · E'+selected()!.episode+' — '+selected()!.title:''"
+        [autoplay]="autoplay()"
+        [externalError]="streamError()"
+        [hasEpisodes]="!!details.episodes.length"
+        [nextEpisode]="next() ?? null"
+        [autoNextDisabled]="automaticNextCancelled()"
+        [transitioning]="switching()"
+        (automaticNextCancelled)="cancelAutomaticNext()"
+        (nextRequested)="playNext()"
+        (back)="back()"
+        (seekRequested)="seek($event)"
+        (retry)="retry()"
+        (episodes)="showEpisodes.set(!showEpisodes())"
+        (ended)="onEnded()"
+        (positionChange)="onPosition($event)"
+      />} @else if(switching()){
+      <div class="player-placeholder" role="status">
+        <span class="spinner"></span><span>Abrindo reprodução…</span>
+      </div>
+      }
+      <section class="watch-info">
+        <div class="watch-title-row">
+          <div>
+            <span class="eyebrow"
+              >{{details.item.kind==='series'?'SÉRIE':details.item.kind==='live'?'AO VIVO':'AGORA EM
+              REPRODUÇÃO'}}</span
+            >
+            <h1>{{details.item.title}}</h1>
+          </div>
+          <details class="playback-settings">
+            <summary><ui-icon name="settings" />Reprodução</summary>
+            <div class="settings-popover">
+              <label
+                ><input
+                  type="checkbox"
+                  [checked]="library.compatibility()"
+                  (change)="setCompatibility($event)"
+                  [disabled]="switching()"
+                />Compatibilidade máxima</label
+              >
+              <p>
+                Converte o vídeo e o áudio para o navegador. Alterar reinicia a reprodução no ponto
+                atual.
+              </p>
+            </div>
+          </details>
+        </div>
+        <div class="watch-meta">
+          @if(details.item.rating){<span class="rating">★ {{details.item.rating}}</span
+          >}@if(details.item.year){<span>{{details.item.year}}</span>}@if(selected()?.duration){<span
+            ><ui-icon name="clock" />{{format(selected()!.duration)}}</span
+          >}@if(details.episodes.length){<button
+            class="text-button"
+            (click)="showEpisodes.set(!showEpisodes())"
+          >
+            <ui-icon name="episodes" />{{showEpisodes()?'Ocultar episódios':'Ver episódios'}}</button
+          >}
+        </div>
+        <p class="synopsis">
+          {{selected()?.synopsis || details.item.synopsis || 'Acomode-se e aproveite. Sua próxima
+          história já começou.'}}
+        </p>
+        @if(details.item.kind!=='live' && (details.item.cast || details.item.director ||
+        details.item.genre || details.item.country)){
+        <dl class="title-credits" aria-label="Informações do título">
+          @if(details.item.cast){
+          <div>
+            <dt>Elenco</dt>
+            <dd>{{details.item.cast}}</dd>
+          </div>
+          } @if(details.item.director){
+          <div>
+            <dt>Direção</dt>
+            <dd>{{details.item.director}}</dd>
+          </div>
+          } @if(details.item.genre){
+          <div>
+            <dt>Gêneros</dt>
+            <dd>{{details.item.genre}}</dd>
+          </div>
+          } @if(details.item.country){
+          <div>
+            <dt>País de origem</dt>
+            <dd>{{details.item.country}}</dd>
+          </div>
+          }
+        </dl>
+        } @if(progress();as progress){@if(session()?.prefetch){
+        <div class="download-status">
+          <span class="download-track"><span [style.width.%]="percent() ?? 5"></span></span
+          ><span
+            >{{progress.done?'Vídeo carregado':'Carregando em segundo plano'}} · {{megabytes()}} MB
+            @if(percent()!==null){ · {{percent()}}% }</span
+          >
+        </div>
+        }}
+        <div class="watch-bottom-row">
+          <p class="keyboard-hint">
+            <kbd>Espaço</kbd> Pausar <kbd>←</kbd><kbd>→</kbd> 10 segundos <kbd>F</kbd> Tela cheia
+          </p>
+          @if(next();as next){<button
+            class="button outline"
+            [disabled]="switching()"
+            (click)="chooseEpisode(next)"
+          >
+            <ui-icon name="play" />Próximo episódio</button
+          >}
+        </div>
+      </section>
+    </section>
+    @if(details.episodes.length && showEpisodes()){
+    <aside class="episode-panel" aria-label="Episódios">
+      <div class="episode-heading">
+        <h2>Episódios</h2>
+        <button
+          class="icon-button"
+          (click)="showEpisodes.set(false)"
+          aria-label="Fechar lista de episódios"
+        >
+          <ui-icon name="close" />
+        </button>
+      </div>
+      <label class="season-select"
+        ><span class="sr-only">Temporada</span
+        ><select [value]="season()" (change)="selectSeason($event)">
+          @for(season of seasons();track season){
+          <option [value]="season">Temporada {{season}}</option>
+          }
+        </select></label
+      >
+      <div class="episode-list">
+        @for(episode of episodes();track episode.id){<button
+          class="episode-card"
+          [class.current]="selected()?.id===episode.id"
+          [disabled]="switching()"
+          (click)="chooseEpisode(episode)"
+          [attr.aria-label]="'Reproduzir '+episode.title"
+          [attr.aria-current]="selected()?.id===episode.id?'true':null"
+        >
+          <span class="episode-number">{{episode.episode}}</span
+          ><span class="episode-thumb"
+            >@if(episode.artwork){<img
+              [src]="episode.artwork"
+              alt=""
+              loading="lazy"
+              (error)="$any($event.target).style.display='none'" />}<ui-icon
+              [name]="selected()?.id===episode.id?'pause':'play'" /></span
+          ><span class="episode-caption"
+            ><strong>{{episode.title}}</strong
+            ><small
+              >{{selected()?.id===episode.id?'Reproduzindo':episode.duration?format(episode.duration):'Assistir
+              episódio'}}</small
+            ></span
+          ></button
+        >}
+      </div>
+    </aside>
+    }
+  </div>
+  }
+</main>

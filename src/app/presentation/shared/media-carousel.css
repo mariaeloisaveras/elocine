@@ -1,0 +1,126 @@
+:host {
+  display: block;
+  min-width: 0;
+  margin: 0 -4px;
+}
+.carousel {
+  position: relative;
+  isolation: isolate;
+}
+.carousel-viewport {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 90px) / 6);
+  gap: 18px;
+  overflow-x: auto;
+  padding: 5px 4px 13px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 4px;
+}
+.carousel-viewport::-webkit-scrollbar {
+  display: none;
+}
+.carousel-viewport.wide {
+  grid-auto-columns: calc((100% - 54px) / 4);
+}
+.carousel-viewport.live {
+  grid-auto-columns: calc((100% - 72px) / 5);
+}
+.edge-arrow {
+  position: absolute;
+  top: 5px;
+  bottom: 13px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  padding: 0;
+  border: 0;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  font-size: 29px;
+  transition:
+    opacity 0.18s ease,
+    background 0.18s ease;
+}
+.edge-arrow.previous {
+  left: 0;
+  border-radius: 7px 0 0 7px;
+  background: linear-gradient(90deg, #080808ec, #08080875);
+}
+.edge-arrow.next {
+  right: 0;
+  border-radius: 0 7px 7px 0;
+  background: linear-gradient(90deg, #08080875, #080808ec);
+}
+.previous ui-icon {
+  transform: rotate(180deg);
+}
+.edge-arrow ui-icon {
+  filter: drop-shadow(0 2px 5px #000);
+  transition: scale 0.15s ease;
+}
+.show-previous .previous,
+.show-next .next,
+.edge-arrow:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.edge-arrow:hover ui-icon {
+  scale: 1.2;
+}
+.edge-arrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+@media (min-width: 1600px) {
+  .carousel-viewport:not(.wide):not(.live) {
+    grid-auto-columns: calc((100% - 108px) / 7);
+  }
+}
+@media (max-width: 1150px) {
+  .carousel-viewport:not(.wide):not(.live) {
+    grid-auto-columns: calc((100% - 72px) / 5);
+  }
+  .carousel-viewport.wide {
+    grid-auto-columns: calc((100% - 36px) / 3);
+  }
+}
+@media (max-width: 900px) {
+  .carousel-viewport:not(.wide):not(.live) {
+    grid-auto-columns: calc((100% - 54px) / 4);
+  }
+  .carousel-viewport.live {
+    grid-auto-columns: calc((100% - 36px) / 3);
+  }
+}
+@media (max-width: 600px) {
+  .carousel-viewport {
+    gap: 12px;
+  }
+  .carousel-viewport:not(.wide):not(.live) {
+    grid-auto-columns: 42%;
+    gap: 12px;
+  }
+  .carousel-viewport.wide {
+    grid-auto-columns: 75%;
+  }
+  .carousel-viewport.live {
+    grid-auto-columns: 66%;
+  }
+  .edge-arrow {
+    width: 34px;
+    font-size: 23px;
+  }
+}
+@media (hover: none) {
+  .edge-arrow {
+    opacity: 1;
+    pointer-events: auto;
+    width: 34px;
+  }
+}

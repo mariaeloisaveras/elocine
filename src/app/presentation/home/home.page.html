@@ -1,0 +1,240 @@
+<a class="skip-link" href="#catalog">Pular para o catálogo</a>
+<header class="site-header">
+  <a class="brand" routerLink="/" aria-label="Elocine, início"
+    ><span class="brand-mark"><ui-icon name="play" /></span>ELOCINE<span class="brand-dot"
+      >.</span
+    ></a
+  >
+  <nav class="main-nav" aria-label="Catálogo">
+    <a routerLink="/" [class.active]="kind()==='all'">Início</a>
+    <a routerLink="/browse/movie" [class.active]="kind()==='movie'">Filmes</a>
+    <a routerLink="/browse/series" [class.active]="kind()==='series'">Séries</a>
+    <a routerLink="/browse/live" [class.active]="kind()==='live'"
+      >Ao vivo<span class="nav-live-dot"></span
+    ></a>
+  </nav>
+  <div class="header-tools">
+    <label class="search-box"
+      ><ui-icon name="search" /><span class="sr-only">Buscar títulos</span
+      ><input
+        type="search"
+        placeholder="O que você quer assistir?"
+        [value]="query()"
+        (input)="search($event)"
+        autocomplete="off"
+      />@if(query()){<button class="icon-button" (click)="clearSearch()" aria-label="Limpar busca">
+        <ui-icon name="close" /></button
+      >}</label
+    >
+    <div class="account-wrapper">
+      <button
+        class="avatar"
+        (click)="accountOpen.set(!accountOpen())"
+        aria-label="Informações da conta"
+        [attr.aria-expanded]="accountOpen()"
+      >
+        E
+      </button>
+      @if(accountOpen()) {
+      <div class="account-menu">
+        <strong>Pronto para o próximo play</strong>@if(account(); as account){
+        <p>{{account.status==='Active'?'Conta ativa':account.status}}</p>
+        <span>{{account.connections}} / {{account.max_connections}} conexão em uso</span
+        >}@else{<span>Conectando ao provedor…</span>}<button
+          class="text-button"
+          (click)="accountOpen.set(false)"
+        >
+          Fechar
+        </button>
+      </div>
+      }
+    </div>
+  </div>
+</header>
+@if(account()?.demo){
+<div class="demo-banner">
+  Modo demonstração · Títulos ilustrativos e vídeo de teste. Seu provedor não está sendo acessado.
+</div>
+}
+<main id="catalog" [class.has-hero]="featured() && !loading() && !error()">
+  @if(!loading() && !error()){ @if(featured(); as hero){
+  <section class="hero">
+    @if(hero.backdrop || hero.artwork){<img
+      class="hero-art"
+      [src]="hero.backdrop || hero.artwork"
+      alt=""
+      fetchpriority="high"
+      (error)="$any($event.target).style.display='none'"
+    />}
+    <div class="hero-shade"></div>
+    <div class="hero-content">
+      <div class="eyebrow"><span class="tiny-brand">E</span> EM DESTAQUE NO SEU CATÁLOGO</div>
+      <h1>{{hero.title}}</h1>
+      <div class="hero-meta">
+        @if(hero.rating){<span class="rating">★ {{hero.rating}}</span
+        >}@if(hero.year){<span>{{hero.year}}</span>}<span>Filme</span>
+      </div>
+      <p>
+        {{hero.synopsis || 'Seu sofá, uma boa história e tempo para esquecer do resto. Escolha o
+        play e entre nesse universo.'}}
+      </p>
+      <div class="hero-actions">
+        <a class="button light" [routerLink]="link(hero)"
+          ><ui-icon name="play" />{{library.resume(hero)?'Continuar assistindo':'Assistir
+          agora'}}</a
+        ><a class="button glass" routerLink="/browse/movie"
+          ><ui-icon name="episodes" />Explorar filmes</a
+        >
+      </div>
+    </div>
+    <div class="hero-side-label">DO SEU CATÁLOGO</div>
+  </section>
+  } }
+  <div class="catalog-content">
+    @if(!featured() || loading() || error()){
+    <section class="catalog-heading">
+      <div>
+        <div class="eyebrow">SEU TEMPO. SUAS HISTÓRIAS.</div>
+        <h1>{{heading()}}</h1>
+        @if(platformId()){<button
+          class="text-button platform-clear"
+          (click)="navigate({platform:'',page:1})"
+        >
+          <ui-icon name="close" />Limpar plataforma</button
+        >}
+        <p>
+          {{kind()==='live'?'Escolha seu canal e acompanhe tudo em tempo real.':'Encontre uma boa
+          história para hoje.'}}
+        </p>
+      </div>
+      @if(kind()!=='all'){<label class="category-filter"
+        ><span class="sr-only">Categoria</span
+        ><select [value]="category()" (change)="selectCategory($event)">
+          <option value="">Todas as categorias</option>
+          @for(category of categories();track category.id){
+          <option [value]="category.id">{{category.name}}</option>
+          }
+        </select></label
+      >}
+    </section>
+    } @if(error()) {
+    <section class="empty-state" role="alert">
+      <ui-icon name="info" />
+      <h2>O catálogo não carregou</h2>
+      <p>{{error()}}</p>
+      <button class="button red" (click)="load()">
+        <ui-icon name="refresh" />Tentar novamente
+      </button>
+    </section>
+    } @else if(loading()){
+    <div class="loading-label" role="status">Preparando seu catálogo…</div>
+    <div class="poster-grid" aria-hidden="true">
+      @for(n of skeletons;track n){
+      <div class="skeleton poster-skeleton"></div>
+      }
+    </div>
+    } @else{ @if(!query() && kind()==='all' && library.history().length){
+    <section class="catalog-section">
+      <div class="section-heading">
+        <h2>Continue de onde parou<span class="section-accent"></span></h2>
+      </div>
+      <media-carousel label="Continuar assistindo" variant="wide">
+        @for(entry of library.history();track entry.parent.kind+entry.parent.id){<media-card
+          [item]="entry.parent"
+          [wide]="true"
+          [progress]="historyProgress(entry.position,entry.duration)"
+        />}
+      </media-carousel>
+    </section>
+    } @if(kind()==='all'){ @for(rail of rails();track rail.kind){@if(rail.page.items.length){
+    <section class="catalog-section">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker"
+            >{{rail.kind==='movie'?'PIPOCA PRONTA?':rail.kind==='series'?'ENCONTRE SUA PRÓXIMA
+            MARATONA':'SINTONIZE O SEU MOMENTO'}}</span
+          >
+          <h2>
+            {{query() ? (rail.kind==='movie'?'Filmes':rail.kind==='series'?'Séries':'Ao vivo') :
+            labels[rail.kind]}}
+          </h2>
+        </div>
+        <a
+          class="see-all"
+          [routerLink]="platformId()?['/platform',platformId()]:['/browse',rail.kind]"
+          [queryParams]="{q:query()||null}"
+          >Ver todos <ui-icon name="chevron"
+        /></a>
+      </div>
+      <media-carousel
+        [hasMore]="rail.page.page<rail.page.pages"
+        [loading]="!!railLoading()[rail.kind]"
+        (endReached)="loadMoreRail(rail.kind)"
+        [label]="labels[rail.kind]"
+        [variant]="rail.kind==='live'?'live':'poster'"
+      >
+        @for(item of rail.page.items;track item.id){<media-card
+          [item]="item"
+          [wide]="rail.kind==='live'"
+        />}
+      </media-carousel>
+      @if(railLoading()[rail.kind]){
+      <p role="status">Carregando mais títulos…</p>
+      } @if(railErrors()[rail.kind]){
+      <p role="status">
+        {{railErrors()[rail.kind]}}
+        <button class="text-button" (click)="loadMoreRail(rail.kind)">Tentar novamente</button>
+      </p>
+      }
+    </section>
+    }} @if(!query() && !platformId()){ @for(rail of platformRails();track
+    rail.id){<platform-carousel [rail]="rail" />} @if(platformLoading()){
+    <p class="platform-loading" role="status">Organizando títulos por plataforma…</p>
+    } @if(platformError()){
+    <div class="platform-error" role="status">
+      <span>{{platformError()}}</span
+      ><button class="text-button" (click)="loadPlatforms()">Tentar novamente</button>
+    </div>
+    } } }@else{
+    <div class="results-count">
+      {{results().total}} {{results().total===1?'título':'títulos'}} no seu catálogo
+    </div>
+    <div class="poster-grid" [class.live-grid]="kind()==='live'">
+      @for(item of results().items;track item.id){<media-card
+        [item]="item"
+        [wide]="kind()==='live'"
+      />}
+    </div>
+    @if(results().pages>1){
+    <nav class="pagination" aria-label="Páginas do catálogo">
+      <button class="button outline" [disabled]="results().page===1" (click)="page(-1)">
+        Anterior</button
+      ><span>Página {{results().page}} de {{results().pages}}</span
+      ><button
+        class="button outline"
+        [disabled]="results().page===results().pages"
+        (click)="page(1)"
+      >
+        Próxima
+      </button>
+    </nav>
+    } } @if(empty()){
+    <section class="empty-state">
+      <ui-icon name="search" />
+      <h2>{{query()?'Nenhum título por aqui':'Esta seleção ainda está vazia'}}</h2>
+      <p>
+        {{query()?'Tente outro nome ou explore uma categoria diferente.':'Escolha outra categoria
+        para continuar explorando.'}}
+      </p>
+      <button class="button outline" (click)="navigate({q:'',category:'',page:1})">
+        Limpar filtros
+      </button>
+    </section>
+    } }
+    <footer class="site-footer">
+      <span class="footer-brand">ELOCINE.</span>
+      <p>Uma boa história está sempre a um play de distância.</p>
+      <span>Filmes · Séries · Ao vivo</span>
+    </footer>
+  </div>
+</main>

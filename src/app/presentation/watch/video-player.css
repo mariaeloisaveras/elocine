@@ -1,0 +1,453 @@
+.cinema-player {
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  width: 100%;
+  max-height: calc(100vh - 118px);
+  border-radius: 9px;
+  color: white;
+}
+.cinema-player:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+.cinema-player video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+.player-chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  transition: opacity 0.25s;
+}
+.player-top {
+  top: 0;
+  background: linear-gradient(#000d, transparent);
+  padding: 24px 24px 55px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  pointer-events: none;
+}
+.player-top > * {
+  pointer-events: auto;
+}
+.player-back {
+  background: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.player-back > ui-icon {
+  font-size: 17px;
+}
+.player-back span {
+  display: none;
+}
+.playing-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.playing-title strong {
+  font-size: 14px;
+  font-weight: 550;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.playing-title span {
+  font-size: 11px;
+  color: #b5b5bd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-wordmark {
+  margin-left: auto;
+  font-family: 'Manrope Variable', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: -0.7px;
+  color: #ffffffb3;
+}
+.player-wordmark > span {
+  color: var(--red);
+}
+.player-bottom {
+  bottom: 0;
+  padding: 70px 24px 17px;
+  background: linear-gradient(transparent, #000c 60%, #000e);
+}
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.player-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  width: 30px;
+  height: 34px;
+  border-radius: 4px;
+  padding: 0;
+  font-size: 20px;
+  transition: transform 0.15s;
+  position: relative;
+}
+.player-icon:hover {
+  transform: scale(1.13);
+}
+.player-icon:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
+}
+.skip-control {
+  font-size: 23px;
+}
+.skip-control small {
+  font-size: 8px;
+  position: absolute;
+  top: 13px;
+  left: 11px;
+  font-weight: 650;
+}
+.player-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.player-volume input {
+  width: 66px;
+  accent-color: white;
+  height: 3px;
+  cursor: pointer;
+}
+.player-time {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1px;
+}
+.controls-spacer {
+  flex: 1;
+}
+.seek-track {
+  position: relative;
+  margin-bottom: 13px;
+}
+.seek-track input {
+  --played: 0%;
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 3px;
+  margin: 0;
+  cursor: pointer;
+  background: linear-gradient(to right, var(--red) var(--played), #ffffff55 var(--played));
+}
+.seek-track input::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--red);
+  transition: transform 0.15s;
+}
+.seek-track input::-moz-range-thumb {
+  border: 0;
+  width: 12px;
+  height: 12px;
+  background: var(--red);
+  border-radius: 50%;
+}
+.seek-track input:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+.seek-track input:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+.seek-preview {
+  position: absolute;
+  bottom: 19px;
+  transform: translateX(-50%);
+  background: #1b1b1dee;
+  border: 1px solid #ffffff25;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.live-indicator {
+  width: 6px;
+  height: 6px;
+  background: var(--red);
+  border-radius: 50%;
+}
+.cinema-player.controls-hidden {
+  cursor: none;
+}
+.cinema-player.controls-hidden .player-chrome {
+  opacity: 0;
+  pointer-events: none;
+}
+.player-center {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 22px;
+  z-index: 4;
+  text-align: center;
+}
+.loading-overlay {
+  pointer-events: none;
+}
+.loading-overlay > span:last-child {
+  font-size: 13px;
+  background: #0008;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+.center-play {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #141414aa;
+  border: 1px solid #ffffff44;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  backdrop-filter: blur(8px);
+}
+.center-play:hover {
+  background: #e50914b0;
+}
+.player-error {
+  background: #000b;
+  min-height: 100%;
+}
+.player-error > ui-icon {
+  font-size: 30px;
+  color: #c8c8cb;
+}
+.player-error h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.player-error p {
+  max-width: 480px;
+  color: #bbb;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+@media (max-width: 1150px) {
+  .player-controls {
+    gap: 12px;
+  }
+  .player-volume input {
+    width: 40px;
+  }
+}
+@media (max-width: 900px) {
+  .player-volume input {
+    width: 60px;
+  }
+}
+@media (max-width: 600px) {
+  .cinema-player {
+    border-radius: 0;
+    aspect-ratio: 16/10;
+    min-height: 220px;
+  }
+  .player-top {
+    padding: 16px 14px 40px;
+    gap: 12px;
+  }
+  .playing-title strong {
+    font-size: 12px;
+  }
+  .playing-title span {
+    font-size: 9px;
+  }
+  .player-wordmark {
+    display: none;
+  }
+  .player-bottom {
+    padding: 50px 14px 13px;
+  }
+  .player-controls {
+    gap: 10px;
+  }
+  .player-icon {
+    font-size: 17px;
+    width: 25px;
+    height: 29px;
+  }
+  .skip-control small {
+    font-size: 6px;
+    top: 12px;
+    left: 10px;
+  }
+  .player-volume input {
+    display: none;
+  }
+  .player-time {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .seek-track {
+    margin-bottom: 9px;
+  }
+  .player-error h2 {
+    font-size: 16px;
+  }
+  .player-error p {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .player-error {
+    gap: 9px;
+  }
+  .player-error > ui-icon {
+    display: none;
+  }
+  .center-play {
+    width: 54px;
+    height: 54px;
+    font-size: 23px;
+  }
+}
+.next-episode-prompt {
+  position: absolute;
+  right: 28px;
+  bottom: 105px;
+  z-index: 5;
+  width: 245px;
+  max-width: calc(100% - 40px);
+  color: white;
+  text-align: right;
+  filter: drop-shadow(0 3px 10px #0008);
+}
+.next-episode-caption {
+  font-size: 13px;
+  margin: 0 0 9px;
+  text-shadow: 0 1px 5px #000;
+}
+.next-episode-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  border-radius: 4px;
+  background: #f8f8f8;
+  color: #141414;
+  cursor: pointer;
+  padding: 0;
+  border: 1px solid #fff3;
+}
+.next-episode-button:hover {
+  background: #fff;
+}
+.next-episode-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  background: #bdbdbf;
+  pointer-events: none;
+  transition: width 0.05s linear;
+}
+.next-episode-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  font-size: 15px;
+}
+.next-episode-content ui-icon {
+  font-size: 17px;
+}
+.next-episode-title {
+  display: block;
+  font-size: 11px;
+  color: #d1cfd6;
+  margin-top: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px #000;
+}
+.cinema-player.controls-hidden.next-up-visible {
+  cursor: auto;
+}
+@media (max-width: 600px) {
+  .next-episode-prompt {
+    right: 16px;
+    bottom: 82px;
+    width: 195px;
+  }
+  .next-episode-button {
+    min-height: 43px;
+  }
+  .next-episode-content {
+    font-size: 12px;
+    padding: 12px;
+    gap: 8px;
+  }
+  .next-episode-caption {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .next-episode-title {
+    display: none;
+  }
+}
+.seek-track input {
+  height: 16px;
+  background-size: 100% 4px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.seek-preview {
+  bottom: calc(100% + 8px);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

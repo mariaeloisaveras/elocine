@@ -1,0 +1,72 @@
+@if(mode()==='card'){
+<div class="card-programme">
+  @if(current();as programme){
+  <strong>{{programme.title}}</strong>
+  <span>{{programme.start*1000|date:'HH:mm'}} – {{programme.end*1000|date:'HH:mm'}}</span>
+  <div
+    class="programme-track"
+    role="progressbar"
+    aria-label="Andamento do programa"
+    [attr.aria-valuenow]="progress()"
+    aria-valuemin="0"
+    aria-valuemax="100"
+  >
+    <span [style.width.%]="progress()"></span>
+  </div>
+  }@else{<span>{{loading()?'Consultando programação…':'Programação indisponível'}}</span>}
+</div>
+}@else{
+<div class="guide-summary">
+  @if(current();as programme){<strong>Agora: {{programme.title}}</strong>} @if(next();as
+  programme){<span>A seguir: {{programme.title}} · {{programme.start*1000|date:'HH:mm'}}</span>}
+</div>
+<button
+  #toggle
+  class="guide-toggle"
+  (click)="show()"
+  [attr.aria-expanded]="open()"
+  aria-controls="channel-programming"
+>
+  <ui-icon name="clock" />Programação
+</button>
+@if(open()){
+<aside class="guide-panel" id="channel-programming" aria-label="Programação do canal">
+  <header>
+    <div>
+      <h2>Programação</h2>
+      <small>Horários locais · {{now()*1000|date:'dd/MM'}}</small>
+    </div>
+    <button class="icon-button" (click)="close()" aria-label="Fechar programação">
+      <ui-icon name="close" />
+    </button>
+  </header>
+  <div class="guide-list">
+    @if(loading()&&!programmes().length){
+    <p role="status">Carregando programação…</p>
+    } @else if(error()){
+    <div role="status">
+      <p>Não foi possível atualizar a programação.</p>
+      <button class="button outline" (click)="refresh()">Tentar novamente</button>
+    </div>
+    } @if(!loading()&&!error()&&!upcoming().length){
+    <p>Programação indisponível para este canal.</p>
+    } @for(programme of upcoming();track programme.start+':'+programme.title){
+    <article
+      [class.current]="programme===current()"
+      [attr.aria-current]="programme===current()?'true':null"
+    >
+      <div class="programme-time">
+        {{programme.start*1000|date:'dd/MM HH:mm'}} – {{programme.end*1000|date:'HH:mm'}}
+        @if(programme===current()){<span>AGORA</span>}
+      </div>
+      <h3>{{programme.title}}</h3>
+      @if(programme===current()){
+      <div class="programme-track"><span [style.width.%]="progress()"></span></div>
+      } @if(programme.description){
+      <p>{{programme.description}}</p>
+      }
+    </article>
+    }
+  </div>
+</aside>
+} }

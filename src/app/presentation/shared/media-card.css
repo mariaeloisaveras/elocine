@@ -1,0 +1,146 @@
+:host {
+  display: block;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.media-card {
+  position: relative;
+  display: block;
+  aspect-ratio: 2/3;
+  overflow: hidden;
+  background: #222328;
+  border: 1px solid #ffffff06;
+  border-radius: 7px;
+  isolation: isolate;
+  transition:
+    transform 0.25s,
+    box-shadow 0.25s;
+}
+.media-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 28px #000a;
+}
+.media-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s;
+}
+.media-card:hover img {
+  transform: scale(1.04);
+}
+.media-card:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #000f, #0006 35%, transparent 65%);
+  z-index: 0;
+}
+.media-card.wide {
+  aspect-ratio: 16/9;
+}
+.media-card.channel img {
+  object-fit: contain;
+  padding: 20px;
+  background: #1d1e23;
+}
+.media-card.channel:after {
+  background: linear-gradient(0deg, #000e, transparent 75%);
+}
+.card-caption {
+  position: absolute;
+  bottom: 17px;
+  left: 14px;
+  right: 12px;
+  z-index: 1;
+}
+.card-caption strong {
+  font-size: 14px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-weight: 650;
+  text-shadow: 0 1px 2px #000;
+}
+.card-caption > span {
+  display: block;
+  font-size: 10px;
+  color: #adabb5;
+  margin-top: 6px;
+  letter-spacing: 0.2px;
+}
+.card-play {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%) scale(0.9);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e50914e6;
+  z-index: 1;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.media-card:hover .card-play,
+.media-card:focus-visible .card-play {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.card-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff40;
+  height: 3px;
+  z-index: 2;
+}
+.card-progress > span {
+  display: block;
+  background: var(--red);
+  height: 100%;
+}
+.art-placeholder {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 80% 20%, #3d2a32, #211e28 50%, #15171d);
+}
+.art-placeholder > span {
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 78px;
+  font-weight: 800;
+  color: #ffffff17;
+}
+.live-tag {
+  position: absolute;
+  z-index: 2;
+  top: 11px;
+  left: 11px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  background: #d80e1b;
+  padding: 5px 7px;
+  border-radius: 3px;
+}
+@media (max-width: 600px) {
+  .card-caption {
+    bottom: 14px;
+    left: 12px;
+  }
+  .card-caption strong {
+    font-size: 13px;
+  }
+  .media-card.channel img {
+    padding: 13px;
+  }
+}

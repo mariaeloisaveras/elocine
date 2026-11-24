@@ -1,0 +1,36 @@
+<section
+  class="platform-section"
+  [attr.data-platform]="rail().id"
+  [style.--platform-accent]="brand().color"
+  [attr.aria-label]="'Seleção '+rail().name"
+>
+  <header class="platform-heading">
+    <span class="platform-mark" aria-hidden="true">{{brand().text}}</span>
+    <div class="platform-name">
+      <span>FILMES E SÉRIES DO SEU CATÁLOGO</span>
+      <h2>{{rail().name}}</h2>
+    </div>
+    <div class="platform-actions">
+      <a
+        [routerLink]="['/platform',rail().id]"
+        [attr.aria-label]="'Ver todos os títulos de '+rail().name"
+        >Ver todos <ui-icon name="chevron"
+      /></a>
+    </div>
+  </header>
+  <media-carousel
+    [label]="rail().name"
+    [hasMore]="hasMore()"
+    [loading]="loading()"
+    (endReached)="loadMore()"
+  >
+    @for(item of items();track item.kind+':'+item.id){<media-card [item]="item" />}
+  </media-carousel>
+  @if(loading()){
+  <p role="status">Carregando mais títulos…</p>
+  } @if(error()){
+  <p role="status">
+    {{error()}} <button class="text-button" (click)="loadMore()">Tentar novamente</button>
+  </p>
+  }
+</section>

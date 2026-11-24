@@ -1,0 +1,86 @@
+<a class="skip-link" href="#all-titles">Pular para os títulos</a>
+<header class="catalog-topbar">
+  <a class="brand" routerLink="/" aria-label="Elocine, início"
+    ><span class="brand-mark"><ui-icon name="play" /></span>ELOCINE<span class="brand-dot"
+      >.</span
+    ></a
+  >
+  <nav aria-label="Catálogo">
+    <a routerLink="/">Início</a
+    ><a routerLink="/browse/movie" [class.active]="!isPlatform()&&kind()==='movie'">Filmes</a
+    ><a routerLink="/browse/series" [class.active]="!isPlatform()&&kind()==='series'">Séries</a
+    ><a routerLink="/browse/live" [class.active]="kind()==='live'">Ao vivo</a>
+  </nav>
+  <a class="catalog-back" routerLink="/"><ui-icon name="back" />Voltar ao início</a>
+</header>
+<main class="catalog-screen" id="all-titles">
+  <section class="catalog-intro" [style.--platform-accent]="brand().color">
+    @if(isPlatform()){<span class="catalog-platform-mark" aria-hidden="true">{{brand().text}}</span
+    >}
+    <div>
+      <div class="eyebrow">
+        {{isPlatform()?'EXPLORE ESTA PLATAFORMA':'SEU TEMPO. SUAS HISTÓRIAS.'}}
+      </div>
+      <h1>{{title()}}</h1>
+      <p>{{total()}} {{total()===1?'título disponível':'títulos disponíveis'}} no seu catálogo</p>
+    </div>
+  </section>
+  <section class="catalog-filters" aria-label="Filtrar catálogo">
+    <label class="catalog-search"
+      ><ui-icon name="search" /><span class="sr-only">Buscar neste catálogo</span
+      ><input
+        type="search"
+        [placeholder]="'Buscar em '+title()"
+        [value]="query()"
+        (input)="search($event)"
+    /></label>
+    @if(isPlatform()){
+    <div class="catalog-tabs" aria-label="Tipo de título">
+      <button class="active" aria-pressed="true">Tudo</button>
+    </div>
+    }@else{
+    <label class="catalog-category"
+      ><span class="sr-only">Categoria</span
+      ><select [value]="category()" (change)="selectCategory($event)">
+        <option value="">Todas as categorias</option>
+        @for(category of categories();track category.id){
+        <option [value]="category.id">{{category.name}}</option>
+        }
+      </select></label
+    >
+    }
+  </section>
+  <div class="all-titles-grid" [class.channels]="kind()==='live'" [attr.aria-busy]="loading()">
+    @for(item of items();track item.kind+':'+item.id){<media-card
+      [item]="item"
+      [wide]="item.kind==='live'"
+    />} @if(loading()&&!items().length){@for(index of skeletons;track index){
+    <div class="skeleton catalog-poster" aria-hidden="true"></div>
+    }}
+  </div>
+  @if(!loading()&&!items().length&&!error()){
+  <section class="empty-state">
+    <ui-icon name="search" />
+    <h2>Nenhum título por aqui</h2>
+    <p>Tente outro nome ou ajuste os filtros.</p>
+    <button class="button outline" (click)="clearFilters()">Limpar filtros</button>
+  </section>
+  }
+  <div class="catalog-sentinel" #sentinel role="status" aria-live="polite">
+    @if(error()){
+    <div class="catalog-feed-error">
+      <p>{{error()}}</p>
+      <button class="button outline" (click)="loadMore()">
+        <ui-icon name="refresh" />Tentar novamente
+      </button>
+    </div>
+    }@else if(loading()){
+    <span class="spinner"></span><span>Carregando títulos…</span>
+    }@else if(items().length){
+    <span>{{items().length}} de {{total()}} títulos</span>
+    @if(!hasMore()){<span>Você chegou ao fim desta seleção.</span>}
+    @if(hasMore()&&!automaticScroll){<button class="button outline" (click)="loadMore()">
+      Carregar mais</button
+    >} }
+  </div>
+</main>

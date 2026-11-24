@@ -1,0 +1,38 @@
+<div
+  class="carousel"
+  [class.show-previous]="hoverEdge()==='previous'"
+  [class.show-next]="hoverEdge()==='next'"
+  (pointermove)="onPointerMove($event)"
+  (pointerleave)="hoverEdge.set(null)"
+>
+  @if(canPrevious()){
+  <button
+    class="edge-arrow previous"
+    (click)="scroll(-1)"
+    [attr.aria-label]="'Voltar na lista '+label()"
+  >
+    <ui-icon name="chevron" />
+  </button>
+  }
+  <div
+    class="carousel-viewport"
+    #viewport
+    [class.wide]="variant()==='wide'"
+    [class.live]="variant()==='live'"
+    [attr.aria-busy]="loading()"
+    (scroll)="onScroll()"
+    role="group"
+    [attr.aria-label]="label()"
+  >
+    <ng-content />
+  </div>
+  @if(canNext()){
+  <button
+    class="edge-arrow next"
+    (click)="scroll(1)"
+    [attr.aria-label]="'Avançar na lista '+label()"
+  >
+    <ui-icon name="chevron" />
+  </button>
+  }
+</div>

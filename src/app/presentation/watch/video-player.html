@@ -1,0 +1,177 @@
+<div
+  class="cinema-player"
+  #container
+  [class.controls-hidden]="!visible()"
+  [class.next-up-visible]="nextUp.visible()"
+  (pointermove)="reveal()"
+  (pointerdown)="reveal()"
+  (focusin)="reveal()"
+>
+  <video
+    #video
+    playsinline
+    preload="auto"
+    tabindex="0"
+    [autoplay]="autoplay()"
+    aria-label="Player de vídeo"
+    (click)="toggle()"
+    (dblclick)="toggleFullscreen()"
+    (loadedmetadata)="onMetadata()"
+    (durationchange)="onDuration()"
+    (timeupdate)="onTime()"
+    (seeked)="confirm()"
+    (loadeddata)="confirm()"
+    (playing)="onPlaying()"
+    (pause)="onPause()"
+    (waiting)="onWaiting()"
+    (error)="onError()"
+    (ended)="onEnded()"
+    (play)="paused.set(false)"
+    (progress)="confirm()"
+  ></video>
+  <div class="player-top player-chrome">
+    <button class="player-back" aria-label="Voltar ao início" (click)="back.emit()">
+      <ui-icon name="back" /><span>Voltar ao início</span>
+    </button>
+    <div class="playing-title">
+      <strong>{{title()}}</strong>@if(subtitle()){<span>{{subtitle()}}</span>}
+    </div>
+    <span class="player-wordmark">ELOCINE<span>.</span></span>
+  </div>
+  @if(playback().item.kind==='live'){<live-guide [channel]="playback().item.id" mode="player" />}
+  @if(problem()){
+  <div class="player-center player-error" role="alert">
+    <ui-icon name="info" />
+    <h2>Vamos tentar mais uma vez?</h2>
+    <p>{{problem()}}</p>
+    <button class="button light" (click)="retry.emit()">
+      <ui-icon name="refresh" />Tentar novamente
+    </button>
+  </div>
+  } @else if(loading()){
+  <div class="player-center loading-overlay" role="status">
+    <span class="spinner"></span
+    ><span>{{pending()!==null?'Buscando '+format(pending()!):'Preparando seu vídeo…'}}</span>
+  </div>
+  } @else if(paused()){<button class="center-play" (click)="toggle()" aria-label="Reproduzir">
+    <ui-icon name="play" /></button
+  >} @if(nextUp.visible()){
+  <div class="next-episode-prompt">
+    <p class="next-episode-caption" role="status">
+      {{nextUp.stopped()?'Continue quando quiser':'Próximo episódio em '+nextUp.remainingSeconds()+'
+      s'}}
+    </p>
+    <button
+      class="next-episode-button"
+      (click)="nextUp.advance()"
+      [attr.aria-label]="'Reproduzir próximo episódio: '+nextEpisode()!.title"
+    >
+      <span
+        class="next-episode-fill"
+        [style.width.%]="nextUp.stopped()?0:nextUp.progress()"
+        aria-hidden="true"
+      ></span>
+      <span class="next-episode-content"
+        ><ui-icon name="play" /><strong>Próximo episódio</strong></span
+      >
+    </button>
+    <span class="next-episode-title"
+      >T{{nextEpisode()!.season}} · E{{nextEpisode()!.episode}} · {{nextEpisode()!.title}}</span
+    >
+  </div>
+  }
+  <div class="player-bottom player-chrome">
+    @if(!isLive()){
+    <div class="seek-track">
+      <input
+        type="range"
+        min="0"
+        [max]="duration() || 1"
+        step="1"
+        [value]="value()"
+        [disabled]="!duration()"
+        [style.--played]="played()+'%'"
+        aria-label="Posição no tempo total do vídeo"
+        [attr.aria-valuetext]="format(value())+' de '+format(duration())"
+        [attr.aria-describedby]="tooltipTime()!==null?'seek-tooltip':null"
+        (pointerenter)="hoverSeek($event)"
+        (pointermove)="hoverSeek($event)"
+        (pointerleave)="clearSeekHover()"
+        (pointercancel)="clearSeekHover()"
+        (blur)="clearSeekHover()"
+        (input)="previewSeek($event)"
+        (change)="commitSeek($event)"
+      />
+      @if(tooltipTime()!==null){<span
+        id="seek-tooltip"
+        role="tooltip"
+        class="seek-preview"
+        [style.left]="tooltipLeft()"
+        >{{format(tooltipTime()!)}}</span
+      >}
+    </div>
+    }
+    <div class="player-controls">
+      <button
+        class="player-icon"
+        (click)="toggle()"
+        [attr.aria-label]="paused()?'Reproduzir':'Pausar'"
+        title="Espaço"
+      >
+        <ui-icon [name]="paused()?'play':'pause'" />
+      </button>
+      @if(!isLive()){<button
+        class="player-icon skip-control"
+        (click)="skip(-10)"
+        aria-label="Voltar 10 segundos"
+      >
+        <ui-icon name="rewind" /><small>10</small></button
+      ><button
+        class="player-icon skip-control"
+        (click)="skip(10)"
+        aria-label="Adiantar 10 segundos"
+      >
+        <ui-icon name="forward" /><small>10</small></button
+      >}
+      <div class="player-volume">
+        <button
+          class="player-icon"
+          (click)="toggleMute()"
+          [attr.aria-label]="muted()?'Ativar som':'Silenciar'"
+        >
+          <ui-icon [name]="muted()?'muted':'volume'" /></button
+        ><input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          [value]="muted()?0:volume()"
+          (input)="setVolume($event)"
+          aria-label="Volume"
+        />
+      </div>
+      <div class="player-time">
+        @if(isLive()){<span class="live-indicator"></span> AO VIVO}@else{<span
+          >{{format(position())}}</span
+        ><span class="time-divider">/</span><span>{{duration()?format(duration()):'--:--'}}</span>}
+      </div>
+      <span class="controls-spacer"></span>
+      @if(hasEpisodes()){<button
+        class="player-icon"
+        (click)="episodes.emit()"
+        aria-label="Escolher episódio"
+        title="Episódios"
+      >
+        <ui-icon name="episodes" /></button
+      >}
+      <button
+        class="player-icon"
+        (click)="toggleFullscreen()"
+        [attr.aria-label]="fullscreen()?'Sair da tela cheia':'Entrar em tela cheia'"
+        title="Tela cheia (F)"
+      >
+        <ui-icon name="fullscreen" />
+      </button>
+    </div>
+  </div>
+</div>

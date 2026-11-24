@@ -1,0 +1,160 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.card-programme {
+  padding: 10px 2px 3px;
+  min-height: 66px;
+  font-size: 11px;
+  color: #aaa6b1;
+}
+.card-programme strong {
+  display: block;
+  color: #eee;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 5px;
+}
+.programme-track {
+  height: 3px;
+  background: #ffffff26;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.programme-track span {
+  display: block;
+  height: 100%;
+  background: var(--red);
+}
+:host.player-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.guide-summary {
+  position: absolute;
+  left: 28px;
+  top: 84px;
+  right: 190px;
+  text-shadow: 0 2px 5px #000;
+  font-size: 12px;
+}
+.guide-summary strong,
+.guide-summary span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guide-summary span {
+  margin-top: 5px;
+  color: #ddd;
+}
+.guide-toggle {
+  pointer-events: auto;
+  position: absolute;
+  right: 25px;
+  top: 84px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  background: #171719df;
+  border: 1px solid #ffffff40;
+  border-radius: 5px;
+  font-size: 12px;
+}
+:host-context(.controls-hidden):not(.guide-open) .guide-toggle,
+:host-context(.controls-hidden) .guide-summary {
+  visibility: hidden;
+}
+.guide-panel {
+  pointer-events: auto;
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  right: 12px;
+  width: min(380px, calc(100% - 24px));
+  background: #151517f7;
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 35px #0009;
+}
+.guide-panel header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #ffffff15;
+}
+.guide-panel h2 {
+  font-size: 18px;
+  margin: 0 0 5px;
+}
+.guide-panel small {
+  font-size: 11px;
+  color: #aaa;
+}
+.guide-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 14px;
+}
+.guide-list article {
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid #ffffff12;
+  border-radius: 5px;
+}
+.guide-list article.current {
+  background: #e5091410;
+  border-color: #e5091470;
+}
+.programme-time {
+  color: #bcb7c4;
+  font-size: 11px;
+}
+.programme-time span {
+  color: #ff5761;
+  font-weight: 700;
+  margin-left: 8px;
+}
+.guide-list h3 {
+  font-size: 14px;
+  margin: 8px 0;
+}
+.guide-list p {
+  color: #bcb7c4;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-line;
+  margin-bottom: 0;
+}
+@media (max-width: 600px) {
+  .guide-summary {
+    left: 15px;
+    top: 65px;
+    right: 155px;
+    font-size: 10px;
+  }
+  .guide-toggle {
+    right: 12px;
+    top: 65px;
+    padding: 7px;
+    font-size: 10px;
+  }
+  .guide-panel header {
+    padding: 10px;
+  }
+  .guide-panel h2 {
+    font-size: 14px;
+  }
+}
