@@ -14,6 +14,7 @@ export interface MediaItem {
   parent_id: string;
   season: string;
   episode: string;
+  trailer?: string;
   cast?: string;
   director?: string;
   genre?: string;

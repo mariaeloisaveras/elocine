@@ -1,5 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 const paths: Record<string, string> = {
+  'thumb-up': 'M7 10v11H3V10h4Zm0 0 5-8c2 0 3 2 2 5l-1 3h6a2 2 0 0 1 2 2l-2 7a3 3 0 0 1-3 2H7',
+  'thumb-down': 'M7 14V3H3v11h4Zm0 0 5 8c2 0 3-2 2-5l-1-3h6a2 2 0 0 0 2-2l-2-7a3 3 0 0 0-3-2H7',
   play: 'M8 5l12 7-12 7V5Z',
   pause: 'M8 5v14M16 5v14',
   search: 'm21 21-5-5M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',

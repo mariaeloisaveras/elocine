@@ -1,0 +1,351 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+  background: #111114;
+  color: #fff;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 42px;
+  min-height: 88px;
+  padding: 0 4.5%;
+  border-bottom: 1px solid #ffffff10;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 27px;
+}
+nav a {
+  color: #a9a9b3;
+  text-decoration: none;
+  font-size: 14px;
+}
+nav .active,
+nav a:hover {
+  color: #fff;
+}
+main {
+  padding: 48px 5%;
+}
+.profile-intro {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 48px;
+}
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  font-size: 40px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #df1834, #761d49);
+}
+.eyebrow {
+  color: #bcbcc5;
+  letter-spacing: 2px;
+  font-size: 10px;
+}
+h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(28px, 4vw, 44px);
+}
+.profile-intro p {
+  margin: 0;
+  color: #aaa;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.profile-section {
+  margin-bottom: 40px;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+h2 {
+  font-size: 21px;
+  margin: 0;
+}
+.section-heading > span {
+  color: #888;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.empty-list {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #92929f;
+  border: 1px dashed #ffffff20;
+  border-radius: 10px;
+  padding: 18px;
+  font-size: 13px;
+}
+.empty-list p {
+  margin: 0;
+  line-height: 1.6;
+}
+.storage-note {
+  color: #777;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  header {
+    padding-top: 18px;
+    padding-bottom: 15px;
+    gap: 20px;
+  }
+  nav {
+    width: 100%;
+    gap: 26px;
+  }
+}
+@media (max-width: 600px) {
+  main {
+    padding-top: 30px;
+  }
+  header {
+    gap: 17px;
+    padding-left: 5%;
+    padding-right: 5%;
+  }
+  header .brand {
+    font-size: 20px;
+  }
+  nav {
+    justify-content: space-between;
+    gap: 0;
+  }
+  nav a {
+    font-size: 12px;
+  }
+  .profile-intro {
+    gap: 16px;
+  }
+  .profile-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 30px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+}
+
+button.profile-avatar {
+  position: relative;
+  padding: 0;
+  border: 2px solid #ffffff25;
+  color: white;
+  cursor: pointer;
+  background: none;
+}
+.profile-avatar profile-avatar {
+  border-radius: 12px;
+}
+button.profile-avatar:hover {
+  border-color: #fff;
+}
+.avatar-edit {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: white;
+  color: #17171b;
+  border-radius: 50%;
+  font-size: 19px;
+  border: 3px solid #111114;
+}
+.avatar-picker {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  box-sizing: border-box;
+  padding: 30px;
+  border: 1px solid #ffffff25;
+  border-radius: 18px;
+  background: #1b1b21;
+  color: #fff;
+  box-shadow: 0 24px 100px #000a;
+}
+.avatar-picker::backdrop {
+  background: #000b;
+  backdrop-filter: blur(5px);
+}
+.picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.picker-heading .eyebrow {
+  margin-bottom: 8px;
+}
+.picker-heading h2 {
+  font-size: 26px;
+}
+.picker-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ffffff30;
+  border-radius: 50%;
+  color: #fff;
+  background: #ffffff08;
+  cursor: pointer;
+}
+.picker-description {
+  color: #aaaab8;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 12px 0 24px;
+}
+.avatar-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px 16px;
+}
+.avatar-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  color: #bdbdc8;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.avatar-tile {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 3px solid transparent;
+  border-radius: 15px;
+  font-size: clamp(30px, 7vw, 54px);
+}
+.avatar-tile profile-avatar {
+  border-radius: 12px;
+}
+.avatar-option:hover .avatar-tile,
+.avatar-option.selected .avatar-tile {
+  border-color: #fff;
+}
+.avatar-option:hover,
+.avatar-option.selected {
+  color: #fff;
+}
+.avatar-check {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #18181c;
+  background: #fff;
+  border-radius: 50%;
+}
+.avatar-option:focus-visible,
+.picker-close:focus-visible,
+button.profile-avatar:focus-visible {
+  outline: 2px solid #e50914;
+  outline-offset: 4px;
+}
+@media (max-width: 480px) {
+  .avatar-picker {
+    padding: 22px;
+  }
+  .avatar-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 12px;
+  }
+  .picker-heading h2 {
+    font-size: 22px;
+  }
+}
+
+.avatar-letter-form {
+  margin-top: 24px;
+  border-top: 1px solid #ffffff20;
+  padding-top: 20px;
+}
+.avatar-letter-form label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.avatar-letter-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.letter-preview {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 10px;
+  font-size: 30px;
+  font-weight: 800;
+}
+.avatar-letter-controls input {
+  width: 64px;
+  padding: 10px;
+  border: 1px solid #ffffff50;
+  border-radius: 6px;
+  background: #111114;
+  color: #fff;
+  font: inherit;
+  font-size: 22px;
+  text-align: center;
+}
+.avatar-letter-controls button {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  color: #18181c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.avatar-letter-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.avatar-letter-controls input:focus-visible,
+.avatar-letter-controls button:focus-visible {
+  outline: 2px solid #e50914;
+  outline-offset: 3px;
+}
+.avatar-letter-form p {
+  color: #aaaab8;
+  font-size: 12px;
+  margin: 12px 0 0;
+}

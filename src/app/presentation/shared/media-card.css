@@ -144,3 +144,176 @@
     padding: 13px;
   }
 }
+
+.media-preview {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #ffffff18;
+  border-radius: 12px;
+  background: #18181c;
+  color: #fff;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  box-shadow: 0 16px 65px #000c;
+}
+.media-preview::backdrop {
+  background: transparent;
+  pointer-events: none;
+}
+.preview-visual {
+  position: relative;
+  aspect-ratio: 16/9;
+  background: radial-gradient(ellipse at top, #49303b, #19191e);
+}
+.preview-visual img,
+.preview-visual iframe {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  display: block;
+}
+.preview-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffff50;
+  border-radius: 50%;
+  color: white;
+  background: #18181cd9;
+  cursor: pointer;
+}
+.preview-body {
+  padding: 20px;
+}
+.preview-body h3 {
+  margin: 0 0 10px;
+  font-size: 21px;
+  line-height: 1.25;
+}
+.preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: #bcbcc5;
+  font-size: 12px;
+}
+.preview-body p {
+  font-size: 13px;
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+.preview-body .preview-cast {
+  color: #a7a7b3;
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+}
+.preview-watch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #fff;
+  border-radius: 5px;
+  color: #17171b;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+}
+.preview-watch:hover {
+  background: #ddd;
+}
+.preview-watch:focus-visible,
+.preview-close:focus-visible {
+  outline: 2px solid #e50914;
+  outline-offset: 3px;
+}
+
+.series-preview {
+  height: min(760px, calc(100dvh - 24px));
+}
+.preview-episodes {
+  margin-top: 24px;
+  border-top: 1px solid #ffffff18;
+  padding-top: 18px;
+}
+.preview-episode-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.preview-episode-heading h4 {
+  margin: 0;
+  font-size: 18px;
+}
+.preview-episode-heading select {
+  max-width: 65%;
+  border: 1px solid #ffffff30;
+  border-radius: 5px;
+  background: #26262d;
+  color: #fff;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+}
+.preview-episode {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid #ffffff12;
+}
+.preview-episode:hover {
+  background: #ffffff0a;
+}
+.preview-episode:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+.episode-number {
+  color: #aaa;
+  font-size: 17px;
+  min-width: 20px;
+  text-align: center;
+}
+.preview-episode img {
+  width: 90px;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.episode-info {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 5px;
+}
+.episode-info strong {
+  font-size: 13px;
+}
+.episode-info small {
+  color: #aaa;
+  font-size: 11px;
+}
+.episode-info > span {
+  color: #bcbcc5;
+  font-size: 12px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}

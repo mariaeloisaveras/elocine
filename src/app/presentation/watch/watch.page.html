@@ -89,6 +89,7 @@
             <ui-icon name="episodes" />{{showEpisodes()?'Ocultar episódios':'Ver episódios'}}</button
           >}
         </div>
+        <library-actions [item]="details.item" />
         <p class="synopsis">
           {{selected()?.synopsis || details.item.synopsis || 'Acomode-se e aproveite. Sua próxima
           história já começou.'}}

@@ -85,6 +85,9 @@
   padding: 0;
 }
 .avatar {
+  padding: 0;
+  overflow: hidden;
+  font-size: 21px;
   background: #493c36;
   border: 1px solid #ffffff1f;
   border-radius: 7px;

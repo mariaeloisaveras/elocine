@@ -28,6 +28,12 @@ export const appConfig: ApplicationConfig = {
           path: 'watch/:kind/:id',
           loadComponent: () => import('./presentation/watch/watch.page').then((m) => m.WatchPage),
         },
+        {
+          path: 'profile',
+          title: 'Meu perfil — Elocine',
+          loadComponent: () =>
+            import('./presentation/profile/profile.page').then((m) => m.ProfilePage),
+        },
         { path: '**', redirectTo: '' },
       ],
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),

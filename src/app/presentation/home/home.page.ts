@@ -12,6 +12,7 @@ import {
 } from '../../domain/media';
 import { routeFor } from '../../domain/time';
 import { LibraryStore } from '../../infrastructure/library.store';
+import { ProfileAvatar } from '../shared/profile-avatar';
 import { Icon } from '../shared/icon';
 import { MediaCard } from '../shared/media-card';
 import { MediaCarousel } from '../shared/media-carousel';
@@ -19,7 +20,7 @@ import { PlatformCarousel } from './platform-carousel';
 
 @Component({
   standalone: true,
-  imports: [RouterLink, Icon, MediaCard, MediaCarousel, PlatformCarousel],
+  imports: [RouterLink, Icon, MediaCard, MediaCarousel, PlatformCarousel, ProfileAvatar],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
 })

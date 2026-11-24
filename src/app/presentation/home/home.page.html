@@ -12,6 +12,7 @@
     <a routerLink="/browse/live" [class.active]="kind()==='live'"
       >Ao vivo<span class="nav-live-dot"></span
     ></a>
+    <a routerLink="/profile">Meu perfil</a>
   </nav>
   <div class="header-tools">
     <label class="search-box"
@@ -33,10 +34,11 @@
         aria-label="Informações da conta"
         [attr.aria-expanded]="accountOpen()"
       >
-        E
+        <profile-avatar [avatar]="library.avatar()" />
       </button>
       @if(accountOpen()) {
       <div class="account-menu">
+        <a class="text-button" routerLink="/profile">Meu perfil e minhas listas</a>
         <strong>Pronto para o próximo play</strong>@if(account(); as account){
         <p>{{account.status==='Active'?'Conta ativa':account.status}}</p>
         <span>{{account.connections}} / {{account.max_connections}} conexão em uso</span

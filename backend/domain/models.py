@@ -28,6 +28,7 @@ class MediaItem:
     director: str = ""
     genre: str = ""
     country: str = ""
+    trailer: str = ""
 
     def public(self):
         result = asdict(self)

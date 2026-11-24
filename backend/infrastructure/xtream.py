@@ -159,6 +159,7 @@ class XtreamRepository:
             **({"series_id": identifier} if kind == "series" else {"vod_id": identifier}),
         )
         info = data.get("info") or {}
+        item.trailer = str(info.get("youtube_trailer") or info.get("trailer") or item.trailer)
         item.synopsis = str(info.get("plot") or info.get("description") or item.synopsis)
         item.backdrop = image(info.get("backdrop_path")) or item.backdrop
         item.artwork = image(info.get("cover") or info.get("movie_image")) or item.artwork

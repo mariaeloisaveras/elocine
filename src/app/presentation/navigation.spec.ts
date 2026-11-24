@@ -362,14 +362,17 @@ describe('Catálogo e reprodução', () => {
     watch.onPosition({ position: 120, duration: 3600 });
     await finish();
     expect(watch.selected()?.id).toBe('102');
+    expect(TestBed.inject(LibraryStore).completed()).toEqual([]);
     expect(watch.autoplay()).toBe(true);
     expect(harness.routeNativeElement!.querySelector('.cinema-player')).toBe(originalPlayer);
     expect(start.mock.calls.at(-1)?.slice(0, 3)).toEqual([second, true, 0]);
     await finish();
     expect(watch.selected()?.id).toBe('201');
     expect(watch.season()).toBe('2');
+    expect(TestBed.inject(LibraryStore).completed()).toEqual([series]);
     expect(start.mock.calls.at(-1)?.slice(0, 3)).toEqual([third, true, 0]);
     watch.onPosition({ position: 120, duration: 3600 });
+    expect(TestBed.inject(LibraryStore).completed()).toEqual([series]);
     const count = start.mock.calls.length;
     await finish();
     expect(start.mock.calls.length).toBe(count);

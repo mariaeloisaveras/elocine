@@ -24,11 +24,12 @@ import {
 import { formatTime } from '../../domain/time';
 import { LibraryStore } from '../../infrastructure/library.store';
 import { Icon } from '../shared/icon';
+import { LibraryActions } from '../shared/library-actions';
 import { VideoPlayer } from './video-player';
 
 @Component({
   standalone: true,
-  imports: [Icon, VideoPlayer],
+  imports: [Icon, VideoPlayer, LibraryActions],
   templateUrl: './watch.page.html',
   styleUrl: './watch.page.css',
 })
@@ -65,6 +66,11 @@ export class WatchPage implements OnDestroy {
     const index = items.findIndex((e) => e.id === this.selected()?.id);
     return index >= 0 ? items[index + 1] : undefined;
   });
+  private endsSeason() {
+    const selected = this.selected();
+    const next = this.next();
+    return !!selected && (!next || next.season !== selected.season);
+  }
   readonly format = formatTime;
   private abort?: AbortController;
   private generation = 0;
@@ -254,7 +260,14 @@ export class WatchPage implements OnDestroy {
     const item = this.selected(),
       parent = this.details()?.item;
     if (!this.completed && item && parent)
-      this.library.remember(item, parent, this.actualPosition, this.actualDuration, force);
+      this.library.remember(
+        item,
+        parent,
+        this.actualPosition,
+        this.actualDuration,
+        force,
+        parent.kind === 'series' && this.endsSeason(),
+      );
   }
   private release(clear = true) {
     clearInterval(this.timer);
@@ -290,8 +303,11 @@ export class WatchPage implements OnDestroy {
     if (this.switching() || this.completed || !this.selected()) return;
     this.completed = true;
     const item = this.details()?.item;
-    if (item) this.library.forget(item);
     const next = this.next();
+    if (item) {
+      if (item.kind === 'movie' || this.endsSeason()) this.library.finish(item);
+      else this.library.forget(item);
+    }
     if (next && !this.automaticNextCancelled()) return this.chooseEpisode(next);
   }
   cancelAutomaticNext() {
