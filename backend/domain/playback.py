@@ -18,6 +18,8 @@ class PlaybackSession:
     can_seek: bool
     offset: float
     initial_position: float
+    audio_index: int | None = None
+    subtitle_index: int | None = None
     touched: float = field(default_factory=time.monotonic)
 
     def public(self) -> dict:
@@ -31,4 +33,6 @@ class PlaybackSession:
             "can_seek": self.can_seek,
             "offset": self.offset,
             "initial_position": self.initial_position,
+            "audio_index": self.audio_index,
+            "subtitle_index": self.subtitle_index,
         }

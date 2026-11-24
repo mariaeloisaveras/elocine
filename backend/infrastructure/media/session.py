@@ -5,6 +5,7 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from .buffer import EpisodeBuffer
@@ -25,6 +26,15 @@ class RelaySession:
     buffer_started: bool = False
     seek_offset: float = 0
     successor: str | None = None
+    audio_index: int | None = None
+    subtitle_index: int | None = None
+    subtitle_path: str | None = None
+    tracks: list = field(default_factory=list)
+    tracks_ready: bool = False
+    conversion_error: str | None = None
+    conversion_failed: bool = False
+    upstream_status: int | None = None
+    stopped_event: threading.Event = field(default_factory=threading.Event)
     lock: threading.RLock = field(default_factory=threading.RLock)
 
     def resource(self, url):
@@ -41,6 +51,7 @@ class RelaySession:
     def stop(self):
         with self.lock:
             self.stopped = True
+            self.stopped_event.set()
             responses = list(self.responses)
             processes = list(self.processes)
         for process in processes:
@@ -49,3 +60,5 @@ class RelaySession:
             response.close()
         if self.buffer:
             self.buffer.stop()
+        if self.subtitle_path:
+            Path(self.subtitle_path).unlink(missing_ok=True)

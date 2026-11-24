@@ -99,6 +99,8 @@ describe('Catálogo e reprodução', () => {
               }) as Playback,
             progress: async () => ({ size: 0, total: null, done: false, error: null, offset: 0 }),
             seek: vi.fn(),
+            selectTracks: vi.fn(),
+            subtitles: async () => ({ cues: [], cursor: 0 }),
             stop,
             release,
           },
@@ -165,6 +167,29 @@ describe('Catálogo e reprodução', () => {
     await harness.fixture.whenStable();
     harness.detectChanges();
     expect(harness.routeNativeElement!.querySelector('.title-credits')).toBeNull();
+  });
+  it('preserves position and pause while changing audio and subtitles without opening a new title', async () => {
+    const harness = await RouterTestingHarness.create('/watch/movie/1');
+    await harness.fixture.whenStable();
+    const watch = harness.routeDebugElement!.componentInstance as WatchPage;
+    const active = watch.session()!;
+    const selected = vi.spyOn(TestBed.inject(PlaybackUseCases), 'selectTracks').mockResolvedValue({
+      ...active,
+      media_url: active.media_url + '?changed',
+      offset: 120,
+      audio_index: 2,
+      subtitle_index: 3,
+    });
+    await watch.selectTracks({ audio_index: 2, subtitle_index: 3, seconds: 120, resume: false });
+    expect(selected).toHaveBeenCalledWith(active.id, {
+      audio_index: 2,
+      subtitle_index: 3,
+      seconds: 120,
+      resume: false,
+    });
+    expect(watch.session()?.offset).toBe(120);
+    expect(watch.autoplay()).toBe(false);
+    expect(TestBed.inject(Router).url).toBe('/watch/movie/1');
   });
   it('selects series episodes and changes seasons without creating a second page', async () => {
     const series = item('series');

@@ -3,6 +3,7 @@
 import atexit
 import re
 import secrets
+import tempfile
 import threading
 import time
 from urllib.parse import urljoin
@@ -10,6 +11,7 @@ from urllib.parse import urljoin
 from .buffer import EpisodeBuffer
 from .http import MediaHTTPServer
 from .session import RelaySession
+from .tracks import subtitle_cues
 
 
 class MediaProxy:
@@ -23,8 +25,29 @@ class MediaProxy:
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         atexit.register(self.close)
 
-    def register(self, url, headers, transcode=False, prefetch=False, seek_offset=0):
-        playback = RelaySession(url, dict(headers), transcode, seek_offset=seek_offset)
+    def register(
+        self,
+        url,
+        headers,
+        transcode=False,
+        prefetch=False,
+        seek_offset=0,
+        audio_index=None,
+        subtitle_index=None,
+    ):
+        playback = RelaySession(
+            url,
+            dict(headers),
+            transcode,
+            seek_offset=seek_offset,
+            audio_index=audio_index,
+            subtitle_index=subtitle_index,
+        )
+        if subtitle_index is not None:
+            with tempfile.NamedTemporaryFile(
+                prefix="elocine-sub-", suffix=".vtt", delete=False
+            ) as stream:
+                playback.subtitle_path = stream.name
         if prefetch:
             playback.buffer = EpisodeBuffer()
         key = playback.resource(url)
@@ -48,25 +71,62 @@ class MediaProxy:
 
     def progress(self, token):
         _, playback = self.resolve(token)
-        if playback and playback.buffer:
-            return playback.buffer.snapshot()
-        return {"size": 0, "total": None, "done": False, "error": None}
+        progress = (
+            playback.buffer.snapshot()
+            if playback and playback.buffer
+            else {"size": 0, "total": None, "done": False, "error": None}
+        )
+        if playback:
+            if not playback.buffer:
+                progress["error"] = (
+                    playback.conversion_error if playback.conversion_failed else None
+                )
+            with playback.lock:
+                progress.update(
+                    media_tracks=list(playback.tracks), tracks_ready=playback.tracks_ready
+                )
+        return progress
+
+    def subtitles(self, token, after=0):
+        _, playback = self.resolve(token)
+        return subtitle_cues(playback.subtitle_path if playback else None, after)
 
     def seek(self, token, seconds):
+        return self._restart(token, seconds)
+
+    def select_tracks(self, token, seconds, audio_index, subtitle_index):
+        return self._restart(
+            token, seconds, {"audio_index": audio_index, "subtitle_index": subtitle_index}
+        )
+
+    def _restart(self, token, seconds, selection=None):
         seconds = float(seconds)
         if not 0 <= seconds < 604800:
             raise ValueError("Invalid position")
-        # Serialize changes so rapid seeks never leave two provider inputs open.
         with self.seek_lock:
             token, previous = self.resolve(token)
             if not previous or previous.stopped:
                 raise ValueError("Reprodução encerrada")
-            if not previous.transcode or not previous.buffer:
-                raise ValueError("Busca no servidor disponível apenas na conversão de episódios")
+            if not previous.transcode or (selection is None and not previous.buffer):
+                raise ValueError("Este modo não permite alterar a reprodução no servidor")
+            tracks = list(previous.tracks)
+            ready = previous.tracks_ready
+            selection = selection or {
+                "audio_index": previous.audio_index,
+                "subtitle_index": previous.subtitle_index,
+            }
             previous.stop()
             new_token, url = self.register(
-                previous.url, previous.headers, transcode=True, prefetch=True, seek_offset=seconds
+                previous.url,
+                previous.headers,
+                transcode=True,
+                prefetch=previous.buffer is not None,
+                seek_offset=seconds,
+                **selection,
             )
+            _, current = self.resolve(new_token)
+            current.tracks = tracks
+            current.tracks_ready = ready
             previous.successor = new_token
             return dict(url=url, offset=seconds)
 

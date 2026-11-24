@@ -9,6 +9,7 @@
 >
   <video
     #video
+    [class]="captionClasses()"
     playsinline
     preload="auto"
     tabindex="0"
@@ -156,6 +157,15 @@
         ><span class="time-divider">/</span><span>{{duration()?format(duration()):'--:--'}}</span>}
       </div>
       <span class="controls-spacer"></span>
+      <track-menu
+        [tracks]="mediaTracks()"
+        [ready]="tracksReady()"
+        [compatibility]="playback().compatibility"
+        [busy]="transitioning()"
+        [audio]="playback().audio_index ?? null"
+        [subtitle]="playback().subtitle_index ?? null"
+        (selection)="selectTracks($event)"
+      />
       @if(hasEpisodes()){<button
         class="player-icon"
         (click)="episodes.emit()"

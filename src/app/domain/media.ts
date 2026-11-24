@@ -74,6 +74,8 @@ export interface Playback {
   can_seek: boolean;
   offset: number;
   initial_position?: number;
+  audio_index?: number | null;
+  subtitle_index?: number | null;
 }
 export interface PlaybackRequest {
   kind: MediaKind;
@@ -83,6 +85,8 @@ export interface PlaybackRequest {
   offset?: number;
 }
 export interface DownloadProgress {
+  media_tracks?: MediaTrack[];
+  tracks_ready?: boolean;
   size: number;
   total: number | null;
   done: boolean;
@@ -111,6 +115,8 @@ export abstract class CatalogRepository {
   abstract account(signal?: AbortSignal): Promise<Account>;
 }
 export abstract class PlaybackRepository {
+  abstract selectTracks(id: string, selection: TrackSelection): Promise<Playback>;
+  abstract subtitles(id: string, after: number): Promise<SubtitleBatch>;
   abstract start(request: PlaybackRequest, signal?: AbortSignal): Promise<Playback>;
   abstract seek(id: string, seconds: number): Promise<Playback>;
   abstract stop(id: string): Promise<void>;
@@ -126,4 +132,26 @@ export interface Programme {
 }
 export interface ChannelSchedule {
   programmes: Programme[];
+}
+
+export interface MediaTrack {
+  index: number;
+  kind: 'audio' | 'subtitle';
+  language: string;
+  codec: string;
+  supported: boolean;
+}
+export interface TrackSelection {
+  audio_index: number | null;
+  subtitle_index: number | null;
+  seconds: number;
+}
+export interface SubtitleCue {
+  start: number;
+  end: number;
+  text: string;
+}
+export interface SubtitleBatch {
+  cues: SubtitleCue[];
+  cursor: number;
 }

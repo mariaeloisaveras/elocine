@@ -3,6 +3,8 @@ from __future__ import annotations
 import shutil
 import subprocess
 
+from .tracks import monitor_tracks
+
 
 def ffmpeg_path():
     import os
@@ -36,7 +38,8 @@ def conversion_command(playback):
         ffmpeg_path(),
         "-nostdin",
         "-loglevel",
-        "error",
+        "info",
+        "-nostats",
         "-rw_timeout",
         "15000000",
         "-user_agent",
@@ -44,13 +47,13 @@ def conversion_command(playback):
     ]
     if playback.seek_offset:
         command.extend(["-ss", str(playback.seek_offset)])
-    return command + [
+    command += [
         "-i",
         playback.url,
         "-map",
         "0:v:0?",
         "-map",
-        "0:a:0?",
+        f"0:{playback.audio_index}" if playback.audio_index is not None else "0:a:0?",
         "-c:v",
         "libx264",
         "-preset",
@@ -75,3 +78,72 @@ def conversion_command(playback):
         "mp4",
         "pipe:1",
     ]
+
+    if playback.subtitle_index is not None and playback.subtitle_path:
+        command += [
+            "-map",
+            f"0:{playback.subtitle_index}",
+            "-c:s",
+            "webvtt",
+            "-f",
+            "webvtt",
+            "-flush_packets",
+            "1",
+            "-y",
+            playback.subtitle_path,
+        ]
+    return command
+
+
+def conversion_chunks(playback, chunk_size=256 * 1024):
+    """Retry temporary upstream refusals only before any MP4 bytes have been sent."""
+    for attempt in range(3):
+        process = monitor = None
+        delivered = False
+        try:
+            with playback.lock:
+                if playback.stopped:
+                    return
+                if playback.processes:
+                    raise ValueError("Uma conversão já está em reprodução.")
+                playback.conversion_failed = False
+                playback.conversion_error = None
+                playback.upstream_status = None
+                process = subprocess.Popen(
+                    conversion_command(playback), stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                )
+                playback.processes.add(process)
+                monitor = monitor_tracks(playback, process)
+            for chunk in iter(lambda: process.stdout.read1(chunk_size), b""):
+                if playback.stopped:
+                    return
+                delivered = True
+                yield chunk
+            return_code = process.wait()
+            monitor.join(timeout=2)
+            if playback.stopped:
+                return
+            if return_code == 0:
+                playback.conversion_error = None
+                return
+            retry = (
+                not delivered
+                and attempt < 2
+                and playback.upstream_status in {403, 429, 500, 502, 503, 504}
+            )
+            if not retry:
+                playback.conversion_failed = True
+                raise ValueError(
+                    playback.conversion_error
+                    or "Não foi possível converter o vídeo. Tente novamente."
+                )
+        finally:
+            if process:
+                terminate(process)
+                process.stdout.close()
+                if monitor:
+                    monitor.join(timeout=2)
+                with playback.lock:
+                    playback.processes.discard(process)
+        if playback.stopped_event.wait(attempt + 1):
+            return

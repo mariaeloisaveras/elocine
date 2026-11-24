@@ -26,6 +26,7 @@ Os adaptadores de mídia estão em `backend/infrastructure/media/`:
 - `session.py`: recursos e encerramento de uma sessão de mídia.
 - `buffer.py` e `download.py`: arquivo temporário e carregamento independente do player.
 - `transcoder.py`: descoberta do FFmpeg e comandos de conversão.
+- `tracks.py`: identificação das faixas da entrada e leitura incremental dos blocos WebVTT.
 
 `PlaybackService` depende da porta `MediaRelay`, não do servidor HTTP ou do buffer. Seu estado usa
 `PlaybackSession`, uma entidade com serialização pública explícita. A apresentação converte apenas
@@ -74,6 +75,20 @@ player confirma a posição depois de receber os dados do novo trecho.
 No modo de compatibilidade, o servidor converte para H.264/AAC. O download/conversão de filmes e
 episódios continua em disco independentemente de o player estar pausado. No modo normal, uma busca
 em dados ainda não baixados pode aguardar o download.
+
+## Áudio e legendas
+
+A conversão identifica faixas pelo próprio processo FFmpeg. Apenas índice, tipo, idioma, codec e
+compatibilidade são guardados; o stderr bruto, que pode incluir URLs autenticadas, não é armazenado
+nem enviado ao cliente. `POST /api/playbacks/:id/tracks` valida os índices antes de encerrar a
+conversão anterior e inicia a nova seleção no tempo solicitado. Buscas posteriores preservam as
+faixas selecionadas.
+
+O mesmo processo escreve o MP4 e, quando selecionada, a legenda em WebVTT temporário. Não há uma
+segunda entrada de mídia para obter legendas. `GET /api/playbacks/:id/subtitles?after=:cursor`
+entrega lotes de cues completos; o player os adiciona a um `TextTrack` nativo e os limpa ao mudar a
+origem. Arquivos de legenda são removidos ao trocar ou encerrar a sessão. A seleção pelo servidor
+requer o modo de compatibilidade; legendas em imagem não são convertidas para texto.
 
 ## Validação
 

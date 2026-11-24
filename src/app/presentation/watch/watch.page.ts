@@ -12,7 +12,15 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { CatalogUseCases } from '../../application/catalog.use-cases';
 import { PlaybackUseCases } from '../../application/playback.use-cases';
-import { CatalogKind, Details, DownloadProgress, MediaItem, Playback } from '../../domain/media';
+import {
+  CatalogKind,
+  Details,
+  DownloadProgress,
+  MediaItem,
+  Playback,
+  SubtitleCue,
+  TrackSelection,
+} from '../../domain/media';
 import { formatTime } from '../../domain/time';
 import { LibraryStore } from '../../infrastructure/library.store';
 import { Icon } from '../shared/icon';
@@ -41,6 +49,8 @@ export class WatchPage implements OnDestroy {
   readonly streamError = signal('');
   readonly showEpisodes = signal(true);
   readonly progress = signal<DownloadProgress | null>(null);
+  readonly subtitleCues = signal<SubtitleCue[]>([]);
+  private subtitleCursor = 0;
   readonly season = signal('');
   readonly autoplay = signal(true);
   readonly automaticNextCancelled = signal(false);
@@ -125,6 +135,8 @@ export class WatchPage implements OnDestroy {
     this.error.set('');
     this.streamError.set('');
     this.progress.set(null);
+    this.subtitleCues.set([]);
+    this.subtitleCursor = 0;
     this.autoplay.set(true);
     try {
       const session = await this.playback.start(
@@ -158,12 +170,20 @@ export class WatchPage implements OnDestroy {
     this.polling = true;
     try {
       const progress = await this.playback.progress(session.id);
-      if (this.session()?.id === session.id) {
+      if (this.session()?.media_url === session.media_url) {
         this.progress.set(progress);
         if (progress.error) this.streamError.set(progress.error);
+        if (session.subtitle_index !== null && session.subtitle_index !== undefined) {
+          const batch = await this.playback.subtitles(session.id, this.subtitleCursor);
+          if (this.session()?.media_url === session.media_url) {
+            this.subtitleCues.update((cues) => [...cues, ...batch.cues]);
+            this.subtitleCursor = batch.cursor;
+          }
+        }
       }
     } catch (error) {
-      if (this.session()?.id === session.id) this.streamError.set((error as Error).message);
+      if (this.session()?.media_url === session.media_url)
+        this.streamError.set((error as Error).message);
     } finally {
       this.polling = false;
     }
@@ -187,6 +207,8 @@ export class WatchPage implements OnDestroy {
         if (revision !== this.playbackRevision || this.session()?.id !== active.id) continue;
         if (!this.queuedSeek) {
           this.autoplay.set(next.resume);
+          this.subtitleCues.set([]);
+          this.subtitleCursor = 0;
           this.session.set(session);
           this.streamError.set('');
         }
@@ -199,6 +221,28 @@ export class WatchPage implements OnDestroy {
       const queued = this.queuedSeek;
       if (queued && queued.revision === this.playbackRevision && generation === this.generation)
         void this.seek(queued);
+    }
+  }
+  async selectTracks(request: TrackSelection & { resume: boolean }) {
+    const active = this.session();
+    if (!active || this.switching() || this.seeking) return;
+    const generation = this.generation;
+    const revision = ++this.playbackRevision;
+    this.switching.set(true);
+    this.streamError.set('');
+    try {
+      const session = await this.playback.selectTracks(active.id, request);
+      if (generation !== this.generation || revision !== this.playbackRevision) return;
+      this.autoplay.set(request.resume);
+      this.subtitleCues.set([]);
+      this.subtitleCursor = 0;
+      this.session.set(session);
+    } catch (error) {
+      if (generation === this.generation && revision === this.playbackRevision)
+        this.streamError.set((error as Error).message);
+    } finally {
+      if (generation === this.generation && revision === this.playbackRevision)
+        this.switching.set(false);
     }
   }
   onPosition(value: { position: number; duration: number }) {

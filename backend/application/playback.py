@@ -81,6 +81,38 @@ class PlaybackService:
             active.offset = result["offset"]
             return active.public()
 
+    def select_tracks(self, identifier, audio_index, subtitle_index, seconds):
+        with self.lock:
+            active = self.require(identifier)
+            if not active.compatibility:
+                raise InvalidPlaybackError(
+                    "Ative a compatibilidade máxima para selecionar áudio e legendas."
+                )
+            if active.item.kind == "live":
+                seconds = 0
+            elif active.item.duration and seconds >= active.item.duration:
+                raise InvalidPlaybackError("A posição está além do final do vídeo.")
+            tracks = self.relay.progress(active.token).get("media_tracks", [])
+            for kind, index in (("audio", audio_index), ("subtitle", subtitle_index)):
+                if index is not None and not any(
+                    track["kind"] == kind and track["index"] == index and track["supported"]
+                    for track in tracks
+                ):
+                    raise InvalidPlaybackError(
+                        "Esta faixa não está disponível ou não é compatível com o navegador."
+                    )
+            result = self.relay.select_tracks(active.token, seconds, audio_index, subtitle_index)
+            active.media_url = result["url"]
+            active.offset = result["offset"]
+            active.audio_index = audio_index
+            active.subtitle_index = subtitle_index
+            return active.public()
+
+    def subtitles(self, identifier, after=0):
+        with self.lock:
+            active = self.require(identifier)
+            return self.relay.subtitles(active.token, after)
+
     def progress(self, identifier):
         with self.lock:
             active = self.require(identifier)

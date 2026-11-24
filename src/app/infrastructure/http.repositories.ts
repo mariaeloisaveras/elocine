@@ -12,6 +12,8 @@ import {
   Playback,
   PlaybackRepository,
   PlaybackRequest,
+  TrackSelection,
+  SubtitleBatch,
   PlatformRail,
   PlatformCatalogPage,
   PlatformCatalogQuery,
@@ -77,6 +79,12 @@ export class HttpCatalogRepository extends CatalogRepository {
 }
 @Injectable()
 export class HttpPlaybackRepository extends PlaybackRepository {
+  override selectTracks(id: string, selection: TrackSelection) {
+    return request<Playback>(`/playbacks/${id}/tracks`, json(selection));
+  }
+  override subtitles(id: string, after: number) {
+    return request<SubtitleBatch>(`/playbacks/${id}/subtitles?after=${after}`);
+  }
   override start(body: PlaybackRequest, signal?: AbortSignal) {
     return request<Playback>('/playbacks', { ...json(body), signal });
   }

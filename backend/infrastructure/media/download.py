@@ -1,26 +1,17 @@
-import subprocess
-
 import requests
 
-from .transcoder import conversion_command, ffmpeg_path, terminate
+from .transcoder import conversion_chunks, ffmpeg_path
 
 
 def download_to_buffer(playback):
     buffer = playback.buffer
-    process = response = None
+    response = chunks = None
     error = None
     try:
         if playback.transcode:
             if not ffmpeg_path():
                 raise ValueError("Conversor indisponível")
-            with playback.lock:
-                if playback.stopped:
-                    return
-                process = subprocess.Popen(
-                    conversion_command(playback), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
-                )
-                playback.processes.add(process)
-            chunks = iter(lambda: process.stdout.read1(256 * 1024), b"")
+            chunks = conversion_chunks(playback)
         else:
             response = requests.get(
                 playback.url,
@@ -46,8 +37,6 @@ def download_to_buffer(playback):
             if playback.stopped or not buffer.append(chunk):
                 break
         if not playback.stopped:
-            if process and process.wait() != 0:
-                raise ValueError("Falha ao converter o episódio")
             if not buffer.size or (buffer.total is not None and buffer.size != buffer.total):
                 raise ValueError("Download do episódio incompleto")
     except (requests.RequestException, OSError):
@@ -55,12 +44,10 @@ def download_to_buffer(playback):
     except ValueError as exc:
         error = str(exc)
     finally:
-        if process:
-            terminate(process)
-            process.stdout.close()
+        if playback.transcode and chunks is not None:
+            chunks.close()
         if response is not None:
             response.close()
         with playback.lock:
-            playback.processes.discard(process)
             playback.responses.discard(response)
         buffer.finish(error)

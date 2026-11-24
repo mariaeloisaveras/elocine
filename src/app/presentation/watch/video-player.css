@@ -1,4 +1,5 @@
 .cinema-player {
+  container-type: inline-size;
   position: relative;
   background: #000;
   overflow: hidden;
@@ -450,4 +451,14 @@
   bottom: calc(100% + 8px);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 400px) {
+  .player-controls {
+    gap: 4px;
+  }
+  .player-time {
+    gap: 3px;
+    font-size: 9px;
+  }
 }

@@ -27,6 +27,12 @@ class SeekRequest(BaseModel):
     seconds: float = Field(ge=0, lt=604800, allow_inf_nan=False)
 
 
+class TracksRequest(BaseModel):
+    audio_index: int | None = Field(default=None, ge=0, le=1000)
+    subtitle_index: int | None = Field(default=None, ge=0, le=1000)
+    seconds: float = Field(default=0, ge=0, lt=604800, allow_inf_nan=False)
+
+
 def create_api(catalog, lifespan, converter_available, demo, frontend_dir, demo_video_path):
     app = FastAPI(title="Elocine API", lifespan=lifespan, docs_url="/api/docs", redoc_url=None)
 
@@ -107,6 +113,16 @@ def create_api(catalog, lifespan, converter_available, demo, frontend_dir, demo_
     @app.post("/api/playbacks/{identifier}/seek")
     def seek(identifier: str, body: SeekRequest, request: Request):
         return request.app.state.playback.seek(identifier, body.seconds)
+
+    @app.post("/api/playbacks/{identifier}/tracks")
+    def select_tracks(identifier: str, body: TracksRequest, request: Request):
+        return request.app.state.playback.select_tracks(
+            identifier, body.audio_index, body.subtitle_index, body.seconds
+        )
+
+    @app.get("/api/playbacks/{identifier}/subtitles")
+    def subtitles(identifier: str, request: Request, after: int = Query(default=0, ge=0)):
+        return request.app.state.playback.subtitles(identifier, after)
 
     @app.post("/api/playbacks/{identifier}/stop", status_code=204)
     def stop(identifier: str, request: Request):

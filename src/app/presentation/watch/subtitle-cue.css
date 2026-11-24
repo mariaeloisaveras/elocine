@@ -1,0 +1,53 @@
+/* Keep cue styles explicit: native WebVTT styling has a restricted property set. */
+.caption-preview.caption-size-small,
+video.caption-size-small::cue {
+  font-size: clamp(14px, 2vw, 20px);
+}
+.caption-preview.caption-size-medium,
+video.caption-size-medium::cue {
+  font-size: clamp(18px, 2.7vw, 28px);
+}
+.caption-preview.caption-size-large,
+video.caption-size-large::cue {
+  font-size: clamp(24px, 3.6vw, 40px);
+}
+.caption-preview.caption-color-white,
+video.caption-color-white::cue {
+  color: #fff;
+}
+.caption-preview.caption-color-yellow,
+video.caption-color-yellow::cue {
+  color: #ffe600;
+}
+.caption-preview.caption-color-cyan,
+video.caption-color-cyan::cue {
+  color: #70e7ff;
+}
+.caption-preview.caption-color-green,
+video.caption-color-green::cue {
+  color: #8fff91;
+}
+.caption-preview.caption-bg-none,
+video.caption-bg-none::cue {
+  background-color: transparent;
+}
+.caption-preview.caption-bg-semi,
+video.caption-bg-semi::cue {
+  background-color: rgb(0 0 0 / 65%);
+}
+.caption-preview.caption-bg-solid,
+video.caption-bg-solid::cue {
+  background-color: #000;
+}
+.caption-preview.caption-outline-on,
+video.caption-outline-on::cue {
+  text-shadow:
+    -1px -1px 1px #000,
+    1px -1px 1px #000,
+    -1px 1px 1px #000,
+    1px 1px 1px #000;
+}
+.caption-preview.caption-outline-off,
+video.caption-outline-off::cue {
+  text-shadow: none;
+}

@@ -1,5 +1,4 @@
 import re
-import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -8,7 +7,7 @@ from urllib.parse import urlsplit
 import requests
 
 from .download import download_to_buffer
-from .transcoder import conversion_command, ffmpeg_path, terminate
+from .transcoder import conversion_chunks, ffmpeg_path
 
 
 class MediaRequestHandler(BaseHTTPRequestHandler):
@@ -200,45 +199,37 @@ class MediaRequestHandler(BaseHTTPRequestHandler):
         if not executable:
             self.fail(503, "FFmpeg is not available")
             return
-        # One input only. Decode unsupported codecs into browser H.264/AAC.
-        command = conversion_command(playback)
-        process = None
+        chunks = conversion_chunks(playback, 64 * 1024)
         started = False
         try:
             with playback.lock:
                 if playback.stopped:
                     return
                 if playback.processes:
-                    self.fail(409, "A conversion is already playing")
+                    self.fail(409, "Uma conversão já está em reprodução.")
                     return
-                process = subprocess.Popen(
-                    command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
-                )
-                playback.processes.add(process)
-            first = process.stdout.read1(64 * 1024)
+            first = next(chunks, b"")
             if not first:
-                self.fail(502, "Unable to convert media")
+                if not playback.stopped:
+                    self.fail(
+                        502, playback.conversion_error or "Não foi possível converter o vídeo."
+                    )
                 return
             self.headers_for(200, "video/mp4")
             self.end_headers()
             started = True
             self.wfile.write(first)
             self.wfile.flush()
-            while not playback.stopped:
-                chunk = process.stdout.read1(64 * 1024)
-                if not chunk:
+            for chunk in chunks:
+                if playback.stopped:
                     break
                 self.wfile.write(chunk)
                 self.wfile.flush()
-        except OSError:
+        except (OSError, ValueError):
             if not started and not playback.stopped:
-                self.fail(502, "Unable to convert media")
+                self.fail(502, playback.conversion_error or "Não foi possível converter o vídeo.")
         finally:
-            if process:
-                terminate(process)
-                process.stdout.close()
-                with playback.lock:
-                    playback.processes.discard(process)
+            chunks.close()
 
 
 class MediaHTTPServer(ThreadingHTTPServer):

@@ -6,14 +6,18 @@ import {
   computed,
   effect,
   input,
+  inject,
   output,
   signal,
   untracked,
   viewChild,
 } from '@angular/core';
 import type Hls from 'hls.js';
-import { MediaItem, Playback } from '../../domain/media';
+import { MediaItem, Playback, MediaTrack, SubtitleCue } from '../../domain/media';
 import { clampPosition, formatTime } from '../../domain/time';
+import { SubtitleAppearanceStore } from '../../infrastructure/subtitle-appearance.store';
+import { subtitleAppearanceClasses } from './subtitle-appearance';
+import { TrackMenu } from './track-menu';
 import { LiveGuide } from '../shared/live-guide';
 import { Icon } from '../shared/icon';
 import { NextEpisodeController, NEXT_EPISODE_WINDOW_SECONDS } from './next-episode.controller';
@@ -21,15 +25,30 @@ import { NextEpisodeController, NEXT_EPISODE_WINDOW_SECONDS } from './next-episo
 @Component({
   selector: 'video-player',
   standalone: true,
-  imports: [Icon, LiveGuide],
+  imports: [Icon, LiveGuide, TrackMenu],
   templateUrl: './video-player.html',
-  styleUrl: './video-player.css',
+  styleUrls: ['./video-player.css', './subtitle-cue.css'],
 })
 export class VideoPlayer implements OnDestroy {
   readonly playback = input.required<Playback>();
+  private readonly subtitleAppearance = inject(SubtitleAppearanceStore);
+  readonly captionClasses = computed(() =>
+    subtitleAppearanceClasses(this.subtitleAppearance.settings()),
+  );
   readonly title = input('');
   readonly subtitle = input('');
   readonly autoplay = input(true);
+  readonly mediaTracks = input<MediaTrack[]>([]);
+  readonly tracksReady = input(false);
+  readonly subtitleCues = input<SubtitleCue[]>([]);
+  readonly tracksRequested = output<{
+    audio_index: number | null;
+    subtitle_index: number | null;
+    seconds: number;
+    resume: boolean;
+  }>();
+  private textTrack?: TextTrack;
+  private renderedCues = 0;
   readonly externalError = input('');
   readonly hasEpisodes = input(false);
   readonly nextEpisode = input<MediaItem | null>(null);
@@ -105,6 +124,29 @@ export class VideoPlayer implements OnDestroy {
       const playback = this.playback();
       if (element) untracked(() => void this.attach(element, playback));
     });
+    effect(() => {
+      const cues = this.subtitleCues();
+      const video = this.video()?.nativeElement;
+      this.playback();
+      if (!video || !cues.length || typeof VTTCue === 'undefined') return;
+      if (!this.textTrack) this.textTrack = video.addTextTrack('subtitles', 'Legendas');
+      this.textTrack.mode = 'showing';
+      for (const cue of cues.slice(this.renderedCues)) {
+        const caption = new VTTCue(cue.start, cue.end, cue.text);
+        caption.snapToLines = false;
+        caption.line = 92;
+        caption.lineAlign = 'end';
+        this.textTrack.addCue(caption);
+      }
+      this.renderedCues = cues.length;
+    });
+  }
+  selectTracks(selection: { audio_index: number | null; subtitle_index: number | null }) {
+    this.tracksRequested.emit({
+      ...selection,
+      seconds: this.isLive() ? 0 : this.position(),
+      resume: !this.paused(),
+    });
   }
   @HostListener('document:mousemove')
   cancelAutomaticNext() {
@@ -112,6 +154,11 @@ export class VideoPlayer implements OnDestroy {
   }
   private async attach(video: HTMLVideoElement, session: Playback) {
     const generation = ++this.generation;
+    this.renderedCues = 0;
+    if (this.textTrack) {
+      this.textTrack.mode = 'disabled';
+      for (const cue of Array.from(this.textTrack.cues || [])) this.textTrack.removeCue(cue);
+    }
     this.hls?.destroy();
     this.hls = undefined;
     video.pause();
@@ -322,7 +369,7 @@ export class VideoPlayer implements OnDestroy {
           !this.loading() &&
           !this.scrubbing() &&
           this.hoverTime() === null &&
-          !this.container()?.nativeElement.querySelector(':focus-visible')
+          !this.container()?.nativeElement.querySelector(':focus-visible, track-menu details[open]')
         )
           this.visible.set(false);
       }, 2800);
@@ -346,7 +393,7 @@ export class VideoPlayer implements OnDestroy {
       event.altKey ||
       event.metaKey ||
       target.isContentEditable ||
-      target.closest('input,textarea,select,button,a')
+      target.closest('input,textarea,select,button,a,summary')
     )
       return;
     if (event.code === 'Space') {

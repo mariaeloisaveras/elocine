@@ -15,6 +15,13 @@ e gerencia reprodução, conversão e cache.
 - Programação dos canais (EPG): programa atual, horários e andamento nos cards. No player, o botão
   **Programação** abre a grade em um painel sem interromper o vídeo, inclusive em tela cheia.
   Atualização a cada minuto enquanto visível, com horários locais e indicação quando não há dados.
+- Menu **Áudio e legendas** dentro do player, inclusive em tela cheia. No modo de compatibilidade,
+  permite escolher as faixas de áudio e ativar/desativar legendas em texto disponibilizadas pelo
+  vídeo. A troca preserva a posição e a pausa em filmes/episódios; nos canais, retoma o ao vivo.
+  Faixas de legenda em imagem são sinalizadas como incompatíveis, e legendas fixas na imagem não
+  podem ser removidas. O app não baixa traduções ou legendas externas.
+- Aparência das legendas ajustável no menu: tamanho, cor, fundo e contorno, com prévia e preferência
+  salva neste navegador. Mudanças visuais são aplicadas sem reiniciar o vídeo.
 - Barra de tempo total com tooltip ao passar o mouse, volume e tela cheia.
 - Nos últimos **30 segundos**, um botão de próximo episódio preenche em **5 segundos** antes de
   avançar. Mover o mouse cancela o avanço automático daquele episódio; o botão continua disponível
@@ -199,9 +206,33 @@ run.sh                Entrada para executar o app completo
 
 Os atalhos respeitam campos de texto, seletores e controles focados.
 
-O histórico e a preferência de compatibilidade ficam no `localStorage` deste navegador. Os vídeos
-são armazenados temporariamente no computador que executa Python. Parar, trocar de título ou
-encerrar o app limpa o cache correspondente.
+### Áudio e legendas
+
+Abra **Áudio e legendas** nos controles do vídeo — em telas menores, o botão aparece como
+**Áudio/CC**. O menu também fica disponível em tela cheia. Com **Compatibilidade máxima** ativa,
+escolha uma faixa de áudio ou uma legenda em texto oferecida pelo conteúdo; selecione
+**Desativadas** para desligar a legenda.
+
+Na seção **Aparência da legenda**, ajuste:
+
+| Opção    | Valores                                           |
+| -------- | ------------------------------------------------- |
+| Tamanho  | Pequeno, médio ou grande                          |
+| Cor      | Branco, amarelo, azul-claro ou verde              |
+| Fundo    | Sem fundo, preto semitransparente ou preto sólido |
+| Contorno | Ativar ou desativar o contorno escuro             |
+
+A prévia acompanha as escolhas. As alterações são aplicadas imediatamente, sem recarregar a
+reprodução, e ficam salvas neste navegador para os próximos títulos. **Restaurar padrão** volta para
+tamanho médio, texto branco, fundo semitransparente e contorno escuro.
+
+As legendas selecionáveis têm uma folga inferior de **8% da altura do vídeo**, inclusive em tela
+cheia. Essa posição é automática. Legendas fixas na imagem não podem ser movidas, estilizadas ou
+desativadas pelo player.
+
+O histórico, a preferência de compatibilidade e a aparência das legendas ficam no `localStorage`
+deste navegador. Os vídeos são armazenados temporariamente no computador que executa Python. Parar,
+trocar de título ou encerrar o app limpa o cache correspondente.
 
 No modo de compatibilidade, uma busca fora da janela disponível encerra a conversão anterior e
 inicia outra no destino, sem manter duas entradas do provedor. No modo normal, buscar uma parte

@@ -1,4 +1,4 @@
-import { MediaItem, PlaybackRepository } from '../domain/media';
+import { MediaItem, PlaybackRepository, TrackSelection } from '../domain/media';
 
 export class PlaybackUseCases {
   constructor(private readonly repository: PlaybackRepository) {}
@@ -14,6 +14,12 @@ export class PlaybackUseCases {
       },
       signal,
     );
+  }
+  selectTracks(id: string, selection: TrackSelection) {
+    return this.repository.selectTracks(id, selection);
+  }
+  subtitles(id: string, after: number) {
+    return this.repository.subtitles(id, after);
   }
   seek(id: string, seconds: number) {
     if (!Number.isFinite(seconds) || seconds < 0)

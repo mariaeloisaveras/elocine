@@ -1,4 +1,7 @@
+import array
+import re
 import subprocess
+import tempfile
 import threading
 import time
 import unittest
@@ -30,6 +33,7 @@ class RelayTests(unittest.TestCase):
                     self.end_headers()
                     return
                 status, kind = 200, "application/octet-stream"
+                content_range = None
                 if self.path == "/hls/master.m3u8":
                     body = (
                         b'#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,URI="audio.m3u8"\n'
@@ -61,8 +65,26 @@ class RelayTests(unittest.TestCase):
                     except OSError:
                         pass
                     return
+                elif self.path == "/temporary-refusal.ts":
+                    attempts = sum(path == self.path for path, _ in cls.seen)
+                    if attempts <= 2:
+                        status, body = (
+                            (403 if attempts == 1 else 429),
+                            b"private provider credentials",
+                        )
+                    else:
+                        body, kind = cls.fixture, "video/mp2t"
                 elif self.path == "/fixture.ts":
                     body, kind = cls.fixture, "video/mp2t"
+                    requested = re.fullmatch(r"bytes=(\d+)-(\d*)", self.headers.get("Range", ""))
+                    if requested:
+                        start = int(requested[1])
+                        end = (
+                            min(int(requested[2]), len(body) - 1) if requested[2] else len(body) - 1
+                        )
+                        content_range = f"bytes {start}-{end}/{len(body)}"
+                        body = body[start : end + 1]
+                        status = 206
                 elif self.path == "/refused":
                     status, body = 403, b"secret provider credentials"
                 else:
@@ -71,7 +93,7 @@ class RelayTests(unittest.TestCase):
                 self.send_header("Content-Type", kind)
                 self.send_header("Content-Length", str(len(body)))
                 if status == 206:
-                    self.send_header("Content-Range", "bytes 2-5/10")
+                    self.send_header("Content-Range", content_range or "bytes 2-5/10")
                     self.send_header("Accept-Ranges", "bytes")
                 self.end_headers()
                 self.wfile.write(body)
@@ -312,6 +334,38 @@ class RelayTests(unittest.TestCase):
             self.assertEqual(requests.get(url, timeout=5).status_code, 503)
 
     @unittest.skipUnless(ffmpeg_path(), "FFmpeg not installed")
+    def test_retries_temporary_provider_refusals_before_sending_video(self):
+        generated = subprocess.run(
+            [
+                ffmpeg_path(),
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=size=64x64:rate=10",
+                "-t",
+                "1",
+                "-c:v",
+                "mpeg2video",
+                "-f",
+                "mpegts",
+                "pipe:1",
+            ],
+            capture_output=True,
+            timeout=20,
+            check=True,
+        )
+        type(self).fixture = generated.stdout
+        token, url = self.register("/temporary-refusal.ts", transcode=True, prefetch=True)
+        response = requests.get(url, timeout=30)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"ftyp", response.content[:32])
+        self.assertEqual(sum(path == "/temporary-refusal.ts" for path, _ in self.seen), 3)
+        self.assertIsNone(self.proxy.progress(token)["error"])
+        self.assertNotIn(b"private", response.content)
+
+    @unittest.skipUnless(ffmpeg_path(), "FFmpeg not installed")
     def test_real_conversion_from_mpeg2_mp2_to_browser_mp4(self):
         exe = ffmpeg_path()
         generated = subprocess.run(
@@ -356,6 +410,129 @@ class RelayTests(unittest.TestCase):
         self.assertIn(b"Video: h264", decoded.stderr)
         self.assertIn(b"Audio: aac", decoded.stderr)
         self.assertFalse(self.proxy.playbacks[token].processes)
+
+    @unittest.skipUnless(ffmpeg_path(), "FFmpeg not installed")
+    def test_selects_real_audio_and_extracts_subtitles_without_extra_source_connections(self):
+        exe = ffmpeg_path()
+        with tempfile.TemporaryDirectory() as folder:
+            subtitles = Path(folder) / "fixture.srt"
+            subtitles.write_text(
+                "1\n00:00:00,200 --> 00:00:01,100\nPrimeira legenda\n\n2\n00:00:01,800 --> 00:00:02,800\nSegunda legenda\n\n"
+            )
+            generated = subprocess.run(
+                [
+                    exe,
+                    "-loglevel",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "color=size=64x64:rate=10",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "sine=frequency=440",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "sine=frequency=880",
+                    "-i",
+                    str(subtitles),
+                    "-t",
+                    "3",
+                    "-map",
+                    "0:v",
+                    "-map",
+                    "1:a",
+                    "-map",
+                    "2:a",
+                    "-map",
+                    "3:s",
+                    "-metadata:s:a:0",
+                    "language=por",
+                    "-metadata:s:a:1",
+                    "language=eng",
+                    "-metadata:s:s:0",
+                    "language=por",
+                    "-c:v",
+                    "mpeg2video",
+                    "-c:a",
+                    "mp2",
+                    "-c:s",
+                    "srt",
+                    "-f",
+                    "matroska",
+                    "pipe:1",
+                ],
+                capture_output=True,
+                timeout=20,
+                check=True,
+            )
+        type(self).fixture = generated.stdout
+        before = sum(path == "/fixture.ts" for path, _ in self.seen)
+        token, url = self.register("/fixture.ts", transcode=True, prefetch=True)
+        first = requests.get(url, timeout=30)
+        self.assertEqual(first.status_code, 200)
+        progress = self.proxy.progress(token)
+        self.assertTrue(progress["tracks_ready"])
+        tracks = progress["media_tracks"]
+        self.assertEqual(
+            [(track["index"], track["language"]) for track in tracks if track["kind"] == "audio"],
+            [(1, "por"), (2, "eng")],
+        )
+        self.assertEqual([track["index"] for track in tracks if track["kind"] == "subtitle"], [3])
+        old_buffer = Path(self.proxy.resolve(token)[1].buffer.path)
+        changed = self.proxy.select_tracks(token, 1.5, 2, 3)
+        self.assertFalse(old_buffer.exists())
+        converted = requests.get(changed["url"], timeout=30)
+        self.assertEqual(converted.status_code, 200)
+        before_subtitles = sum(path == "/fixture.ts" for path, _ in self.seen)
+        batch = self.proxy.subtitles(token)
+        self.assertTrue(batch["cues"])
+        cue = next(cue for cue in batch["cues"] if "Segunda legenda" in cue["text"])
+        self.assertAlmostEqual(cue["start"], 0.3, delta=0.2)
+        self.assertGreater(cue["end"], cue["start"])
+        self.assertEqual(self.proxy.subtitles(token, batch["cursor"])["cues"], [])
+        after = sum(path == "/fixture.ts" for path, _ in self.seen)
+        self.assertEqual(after, before_subtitles)
+        self.assertGreaterEqual(after - before, 2)
+        decoded = subprocess.run(
+            [
+                exe,
+                "-loglevel",
+                "error",
+                "-i",
+                "pipe:0",
+                "-t",
+                "1",
+                "-vn",
+                "-ac",
+                "1",
+                "-ar",
+                "8000",
+                "-f",
+                "s16le",
+                "pipe:1",
+            ],
+            input=converted.content,
+            capture_output=True,
+            timeout=20,
+            check=True,
+        )
+        samples = array.array("h", decoded.stdout)
+        crossings = sum(a <= 0 < b for a, b in zip(samples, samples[1:]))
+        frequency = crossings * 8000 / len(samples)
+        self.assertGreater(frequency, 750)
+        self.assertLess(frequency, 1000)
+        subtitle_file = Path(self.proxy.resolve(token)[1].subtitle_path)
+        self.assertTrue(subtitle_file.exists())
+        self.proxy.seek(token, 2)
+        current = self.proxy.resolve(token)[1]
+        self.assertEqual((current.audio_index, current.subtitle_index), (2, 3))
+        self.assertFalse(subtitle_file.exists())
+        new_subtitles = Path(current.subtitle_path)
+        self.proxy.revoke(token)
+        self.assertFalse(new_subtitles.exists())
 
 
 if __name__ == "__main__":
