@@ -3,6 +3,11 @@ import { avatarLetter, profileAvatar } from '../domain/profile-avatar';
 import { HistoryEntry, MediaItem } from '../domain/media';
 
 export type TitleReaction = 'liked' | 'loved' | 'disliked' | 'hated';
+export interface EpisodeProgress {
+  position: number;
+  duration: number;
+  completed: boolean;
+}
 export interface RatedTitle {
   item: MediaItem;
   reaction: TitleReaction;
@@ -34,6 +39,65 @@ export class LibraryStore {
     this.write('elocine.avatar', avatar.id);
   }
   readonly history = signal<HistoryEntry[]>(this.readHistory());
+  readonly episodeHistory = signal<Record<string, EpisodeProgress>>(this.readEpisodeHistory());
+  private readEpisodeHistory(): Record<string, EpisodeProgress> {
+    const stored = this.read<unknown>('elocine.episodes', {});
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return {};
+    return Object.fromEntries(
+      Object.entries(stored).filter(
+        ([, entry]) =>
+          entry &&
+          Number.isFinite(entry.position) &&
+          entry.position >= 0 &&
+          Number.isFinite(entry.duration) &&
+          entry.duration >= 0 &&
+          typeof entry.completed === 'boolean',
+      ),
+    );
+  }
+  episodeProgress(item: MediaItem, parentId = item.parent_id): number {
+    const key = parentId + ':' + item.id;
+    const saved = this.episodeHistory()[key];
+    const legacy = this.history().find(
+      (entry) =>
+        entry.item.kind === 'episode' && entry.item.id === item.id && entry.parent.id === parentId,
+    );
+    const entry = saved || legacy;
+    if (!entry) return 0;
+    if (saved?.completed) return 100;
+    const duration = entry.duration || item.duration;
+    return duration > 0 ? Math.min(100, Math.max(0, (entry.position / duration) * 100)) : 0;
+  }
+  rememberEpisode(
+    item: MediaItem,
+    parentId: string,
+    position: number,
+    duration: number,
+    completed = false,
+  ) {
+    if (
+      item.kind !== 'episode' ||
+      !parentId ||
+      !Number.isFinite(position) ||
+      !Number.isFinite(duration) ||
+      position < 0 ||
+      duration < 0
+    )
+      return;
+    const key = parentId + ':' + item.id;
+    const previous = this.episodeHistory()[key];
+    const entry: EpisodeProgress = {
+      position,
+      duration,
+      completed:
+        !!previous?.completed ||
+        completed ||
+        (duration > 0 && position >= duration - Math.min(20, duration * 0.05)),
+    };
+    const entries = { ...this.episodeHistory(), [key]: entry };
+    this.episodeHistory.set(entries);
+    this.write('elocine.episodes', entries);
+  }
   readonly completed = signal<MediaItem[]>(this.readTitles('elocine.completed'));
   readonly watchlist = signal<MediaItem[]>(this.readTitles('elocine.watchlist'));
   readonly ratings = signal<RatedTitle[]>(this.readRatings());
@@ -130,6 +194,7 @@ export class LibraryStore {
     if (item.kind === 'live' || position < 3 || !Number.isFinite(position)) return;
     if (!force && Date.now() - this.lastWrite < 4000) return;
     this.lastWrite = Date.now();
+    this.rememberEpisode(item, parent.id, position, duration);
     const remaining = this.history().filter(
       (entry) => !(entry.parent.kind === parent.kind && entry.parent.id === parent.id),
     );

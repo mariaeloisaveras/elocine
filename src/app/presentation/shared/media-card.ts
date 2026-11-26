@@ -16,6 +16,7 @@ import { RouterLink } from '@angular/router';
 import { MediaItem } from '../../domain/media';
 import { routeFor } from '../../domain/time';
 import { LiveGuide } from './live-guide';
+import { LibraryStore } from '../../infrastructure/library.store';
 import { LibraryActions } from './library-actions';
 import { Icon } from './icon';
 @Component({
@@ -89,6 +90,20 @@ import { Icon } from './icon';
             ></iframe>
           } @else if (previewImage()) {
             <img [src]="previewImage()" [alt]="item().title" />
+          }
+          @if (previewProgress() > 0) {
+            <span
+              class="preview-progress"
+              role="progressbar"
+              [attr.aria-label]="
+                item().kind === 'series' ? 'Progresso do último episódio' : 'Progresso do filme'
+              "
+              [attr.aria-valuenow]="previewProgress()"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <span [style.width.%]="previewProgress()"></span>
+            </span>
           }
           <button class="preview-close" aria-label="Fechar prévia" (click)="close()">
             <ui-icon name="close" />
@@ -164,6 +179,20 @@ import { Icon } from './icon';
                         }
                       </span>
                       <ui-icon name="play" />
+                      @if (library.episodeProgress(episode, item().id) > 0) {
+                        <span
+                          class="episode-watch-progress"
+                          role="progressbar"
+                          [attr.aria-label]="'Progresso de ' + episode.title"
+                          [attr.aria-valuenow]="library.episodeProgress(episode, item().id)"
+                          aria-valuemin="0"
+                          aria-valuemax="100"
+                        >
+                          <span
+                            [style.width.%]="library.episodeProgress(episode, item().id)"
+                          ></span>
+                        </span>
+                      }
                     </a>
                   } @empty {
                     <p>Episódios não disponíveis para esta série.</p>
@@ -181,6 +210,7 @@ import { Icon } from './icon';
   `,
 })
 export class MediaCard {
+  readonly library = inject(LibraryStore);
   item = input.required<MediaItem>();
   wide = input(false);
   progress = input(0);
@@ -190,6 +220,17 @@ export class MediaCard {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly anchor = viewChild<ElementRef<HTMLElement>>('anchor');
   private readonly preview = viewChild<ElementRef<HTMLElement>>('preview');
+  readonly previewProgress = computed(() => {
+    if (this.progress() > 0) return Math.min(100, this.progress());
+    const entry = this.library.resume(this.item());
+    if (entry?.duration) return Math.min(100, (entry.position / entry.duration) * 100);
+    if (
+      this.item().kind === 'movie' &&
+      this.library.completed().some((item) => item.kind === 'movie' && item.id === this.item().id)
+    )
+      return 100;
+    return 0;
+  });
   readonly opened = signal(false);
   readonly loading = signal(false);
   readonly episodes = signal<MediaItem[]>([]);
@@ -254,6 +295,7 @@ export class MediaCard {
     if (event.pointerType !== 'touch') this.scheduleOpen();
   }
   scheduleOpen() {
+    if (this.item().kind === 'live') return;
     this.cancelClose();
     if (!this.opened()) this.open();
   }

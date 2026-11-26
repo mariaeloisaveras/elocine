@@ -103,6 +103,12 @@ export class LiveGuide {
     this.open.set(false);
     this.toggle()?.nativeElement.focus();
   }
+  @HostListener('document:click', ['$event'])
+  onOutsideClick(event: MouseEvent) {
+    if (this.open() && !event.composedPath().includes(this.element.nativeElement)) {
+      this.open.set(false);
+    }
+  }
   @HostListener('keydown.escape', ['$event']) escape(event: Event) {
     if (this.open()) {
       event.stopPropagation();

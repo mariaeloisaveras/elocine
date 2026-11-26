@@ -197,7 +197,15 @@ export class CatalogPage implements OnDestroy {
     this.debounce = setTimeout(() => this.filters({ q: q || null }), 350);
   }
   selectCategory(event: Event) {
-    this.filters({ category: (event.target as HTMLSelectElement).value || null });
+    const changes: Record<string, string | null> = {
+      category: (event.target as HTMLSelectElement).value || null,
+    };
+    if (this.kind() === 'live') {
+      clearTimeout(this.debounce);
+      this.query.set('');
+      changes['q'] = null;
+    }
+    this.filters(changes);
   }
   clearFilters() {
     this.filters({ q: null, category: null, kind: null });

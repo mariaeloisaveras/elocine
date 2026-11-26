@@ -185,7 +185,19 @@
               >{{selected()?.id===episode.id?'Reproduzindo':episode.duration?format(episode.duration):'Assistir
               episódio'}}</small
             ></span
-          ></button
+          >
+          @if(library.episodeProgress(episode,details.item.id)>0){
+          <span
+            class="episode-watch-progress"
+            role="progressbar"
+            [attr.aria-label]="'Progresso de '+episode.title"
+            [attr.aria-valuenow]="library.episodeProgress(episode,details.item.id)"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <span [style.width.%]="library.episodeProgress(episode,details.item.id)"></span>
+          </span>
+          }</button
         >}
       </div>
     </aside>

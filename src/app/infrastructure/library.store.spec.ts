@@ -63,6 +63,23 @@ describe('Profile library', () => {
     expect(store.completed()).toEqual([series]);
   });
 
+  it('keeps each episode progress after moving to another episode and completing the series', () => {
+    const store = new LibraryStore();
+    const second = { ...episode, id: 'ep2' };
+    store.remember(episode, series, 500, 1000, true);
+    store.remember(second, series, 100, 1000, true);
+    expect(store.episodeProgress(episode)).toBe(50);
+    expect(store.episodeProgress(second)).toBe(10);
+    store.rememberEpisode(episode, series.id, 1000, 1000, true);
+    store.finish(series);
+    const restored = new LibraryStore();
+    expect(restored.episodeProgress(episode)).toBe(100);
+    expect(restored.episodeProgress(second)).toBe(10);
+    restored.rememberEpisode(episode, series.id, 50, 1000);
+    expect(restored.episodeProgress(episode)).toBe(100);
+    expect(restored.episodeProgress(episode, 'another-series')).toBe(0);
+  });
+
   it('ignores invalid stored collections', () => {
     localStorage.setItem('elocine.completed', '{}');
     localStorage.setItem('elocine.watchlist', '[null,{}]');

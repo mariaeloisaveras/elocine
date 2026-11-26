@@ -18,6 +18,12 @@ def conversion_failure(line):
     lowered = line.casefold()
     status = HTTP_STATUS.search(line)
     if status:
+        if status[1] in {"401", "403"}:
+            return (
+                f"O provedor recusou a reprodução (HTTP {status[1]}). "
+                "Confira o acesso da conta ao canal e feche outros players ou aparelhos; "
+                "o limite de conexões pode estar em uso."
+            )
         return f"O provedor recusou a reprodução (HTTP {status[1]}). Aguarde alguns segundos e tente novamente."
     if "invalid utf-8" in lowered or "unable to recode subtitle" in lowered:
         return "A legenda contém texto com codificação inválida."

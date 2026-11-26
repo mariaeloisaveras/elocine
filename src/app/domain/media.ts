@@ -156,3 +156,5 @@ export interface SubtitleBatch {
   cues: SubtitleCue[];
   cursor: number;
 }
+
+export class PlaybackEndedError extends Error {}

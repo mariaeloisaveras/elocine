@@ -96,11 +96,13 @@
 }
 .card-progress {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 5px;
+  left: 8px;
+  right: 8px;
   background: #ffffff40;
   height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
   z-index: 2;
 }
 .card-progress > span {
@@ -316,4 +318,39 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+}
+
+.preview-episode {
+  position: relative;
+}
+.episode-watch-progress {
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: #ffffff25;
+  overflow: hidden;
+}
+.episode-watch-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--red, #e50914);
+}
+
+.preview-progress {
+  position: absolute;
+  bottom: 5px;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #ffffff40;
+}
+.preview-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--red, #e50914);
 }

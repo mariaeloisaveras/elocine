@@ -25,8 +25,12 @@ class PlaybackService:
         self.converter_available = converter_available
         self.lock = threading.RLock()
         self.active: PlaybackSession | None = None
+        self.start_revision = 0
 
     def start(self, kind, identifier, parent_id="", compatibility=True, offset=0):
+        with self.lock:
+            self.start_revision += 1
+            revision = self.start_revision
         if kind == "episode":
             details = self.repository.details("series", parent_id)
             item = next((e for e in details.episodes if e.id == identifier), None)
@@ -37,6 +41,8 @@ class PlaybackService:
         if item.duration and offset >= item.duration:
             offset = 0
         with self.lock:
+            if revision != self.start_revision:
+                raise InvalidPlaybackError("A reprodução foi substituída por outro título.")
             if self.active:
                 self.stop(self.active.id)
             compatible = bool(compatibility and self.converter_available())

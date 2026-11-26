@@ -33,6 +33,10 @@ class RelaySession:
     tracks_ready: bool = False
     conversion_error: str | None = None
     conversion_failed: bool = False
+    conversion_started_at: float | None = None
+    last_output_at: float | None = None
+    output_bytes: int = 0
+    conversion_done: bool = False
     upstream_status: int | None = None
     stopped_event: threading.Event = field(default_factory=threading.Event)
     lock: threading.RLock = field(default_factory=threading.RLock)

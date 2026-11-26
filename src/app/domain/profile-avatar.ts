@@ -1,7 +1,7 @@
 export const PROFILE_AVATARS = [
   {
     id: 'classic',
-    name: 'Clássico Elocine',
+    name: 'O clássico da casa',
     icon: 'E',
     background: 'linear-gradient(135deg, #df1834, #761d49)',
   },

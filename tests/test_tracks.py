@@ -10,11 +10,26 @@ from backend.bootstrap import create_app
 from backend.infrastructure.demo import DemoRepository
 from backend.infrastructure.media.session import RelaySession
 from backend.infrastructure.media.tracks import conversion_failure, read_tracks, subtitle_cues
-from backend.infrastructure.media.transcoder import conversion_chunks
+from backend.infrastructure.media.transcoder import conversion_chunks, conversion_command
 from backend.infrastructure.settings import Settings
 
 
 class TrackTests(unittest.TestCase):
+    def test_live_conversion_reconnects_input_with_bounded_retries(self):
+        playback = RelaySession("http://provider.invalid/live.ts", {}, transcode=True)
+        command = conversion_command(playback)
+        self.assertEqual(command[command.index("-reconnect") + 1], "1")
+        self.assertEqual(command[command.index("-reconnect_max_retries") + 1], "3")
+        self.assertLess(command.index("-reconnect"), command.index("-i"))
+        self.assertNotIn("-reconnect_at_eof", command)
+        self.assertEqual(
+            command[command.index("-reconnect_on_http_error") + 1],
+            "429,500,502,503,504",
+        )
+        # VOD conversions use their persistent buffer and must retain EOF behavior.
+        playback.buffer = object()
+        self.assertNotIn("-reconnect", conversion_command(playback))
+
     def test_reads_input_languages_and_ignores_output_and_private_logs(self):
         playback = RelaySession("http://provider.invalid/private", {})
         log = b"Input #0, matroska, from 'private':\n  Stream #0:1(por): Audio: aac, 48000 Hz\n  Stream #0:2(eng): Subtitle: subrip (default)\n  Stream #0:3: Subtitle: hdmv_pgs_subtitle\nStream mapping:\nOutput #0, mp4, to 'pipe:1':\n  Stream #0:0: Audio: aac\n"
@@ -47,6 +62,19 @@ class TrackTests(unittest.TestCase):
         self.assertNotIn("password", message)
         self.assertIn("codificação", conversion_failure("Invalid UTF-8 in decoded subtitles text"))
         self.assertIsNone(conversion_failure("Input #0, matroska, from private"))
+
+    def test_authorization_errors_explain_access_and_connection_limits(self):
+        for status in (401, 403):
+            with self.subTest(status=status):
+                message = conversion_failure(
+                    f"Server returned {status}: http://private.invalid/user/password/live.ts"
+                )
+                self.assertIn(f"HTTP {status}", message)
+                self.assertIn("limite de conexões", message)
+                self.assertIn("feche outros players", message)
+                self.assertNotIn("Aguarde", message)
+                self.assertNotIn("private", message)
+                self.assertNotIn("password", message)
 
     def test_does_not_retry_after_video_bytes_have_already_been_sent(self):
         playback = RelaySession("http://provider.invalid/video", {}, transcode=True)

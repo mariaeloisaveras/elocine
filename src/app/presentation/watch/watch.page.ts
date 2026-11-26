@@ -18,6 +18,7 @@ import {
   DownloadProgress,
   MediaItem,
   Playback,
+  PlaybackEndedError,
   SubtitleCue,
   TrackSelection,
 } from '../../domain/media';
@@ -82,6 +83,40 @@ export class WatchPage implements OnDestroy {
   private seeking = false;
   private playbackRevision = 0;
   private completed = false;
+  private readonly tabId = crypto.randomUUID();
+  private readonly playbackOwnerKey = 'elocine.playback-owner';
+  @HostListener('window:storage', ['$event'])
+  onPlaybackOwnerChanged(event: StorageEvent) {
+    if (event.key !== this.playbackOwnerKey || !event.newValue) return;
+    try {
+      const owner = JSON.parse(event.newValue);
+      if (owner.tab !== this.tabId && (this.session() || this.switching())) this.replaced();
+    } catch {
+      /* Ignore unrelated or malformed browser storage updates. */
+    }
+  }
+  private replaced() {
+    this.save(true);
+    ++this.playbackRevision;
+    this.abort?.abort();
+    this.release();
+    this.switching.set(false);
+    this.loading.set(false);
+    this.streamError.set('');
+    this.error.set(
+      'A reprodução foi aberta em outra aba. O último título aberto está passando lá.',
+    );
+  }
+  private claimPlayback() {
+    try {
+      localStorage.setItem(
+        this.playbackOwnerKey,
+        JSON.stringify({ tab: this.tabId, request: crypto.randomUUID() }),
+      );
+    } catch {
+      /* The server also replaces the previous session when storage is unavailable. */
+    }
+  }
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroy)).subscribe((params) => {
       const kind = params.get('kind'),
@@ -128,6 +163,8 @@ export class WatchPage implements OnDestroy {
     }
   }
   async start(item: MediaItem, offset = 0) {
+    this.claimPlayback();
+    if (this.abort?.signal.aborted) this.abort = new AbortController();
     const generation = this.generation,
       revision = ++this.playbackRevision;
     this.save(true);
@@ -178,7 +215,7 @@ export class WatchPage implements OnDestroy {
       const progress = await this.playback.progress(session.id);
       if (this.session()?.media_url === session.media_url) {
         this.progress.set(progress);
-        if (progress.error) this.streamError.set(progress.error);
+        this.streamError.set(progress.error || '');
         if (session.subtitle_index !== null && session.subtitle_index !== undefined) {
           const batch = await this.playback.subtitles(session.id, this.subtitleCursor);
           if (this.session()?.media_url === session.media_url) {
@@ -188,8 +225,10 @@ export class WatchPage implements OnDestroy {
         }
       }
     } catch (error) {
-      if (this.session()?.media_url === session.media_url)
-        this.streamError.set((error as Error).message);
+      if (this.session()?.media_url === session.media_url) {
+        if (error instanceof PlaybackEndedError) this.replaced();
+        else this.streamError.set((error as Error).message);
+      }
     } finally {
       this.polling = false;
     }
@@ -291,18 +330,48 @@ export class WatchPage implements OnDestroy {
     const item = this.selected();
     if (item) void this.start(item, this.actualPosition);
   }
-  retry() {
+  async retry() {
+    if (this.switching()) return;
     const item = this.selected();
-    if (item) void this.start(item, this.actualPosition);
-    else {
+    if (!item) {
       const params = this.route.snapshot.paramMap;
-      void this.load(params.get('kind') as CatalogKind, params.get('id')!);
+      return this.load(params.get('kind') as CatalogKind, params.get('id')!);
+    }
+    const generation = this.generation;
+    const revision = this.playbackRevision;
+    const session = this.session();
+    const offset = item.kind === 'live' ? 0 : this.actualPosition;
+    this.switching.set(true);
+    clearInterval(this.timer);
+    // Unmount the old player first, closing its pending media request.
+    this.session.set(null);
+    this.streamError.set('');
+    try {
+      if (session) await this.playback.stop(session.id);
+      if (generation !== this.generation || revision !== this.playbackRevision) return;
+      await this.start(item, offset);
+    } catch (error) {
+      if (generation === this.generation && revision === this.playbackRevision)
+        this.error.set((error as Error).message);
+    } finally {
+      if (generation === this.generation && revision === this.playbackRevision)
+        this.switching.set(false);
     }
   }
   onEnded() {
     if (this.switching() || this.completed || !this.selected()) return;
     this.completed = true;
+    const episode = this.selected();
     const item = this.details()?.item;
+    if (episode?.kind === 'episode' && item) {
+      this.library.rememberEpisode(
+        episode,
+        item.id,
+        this.actualPosition,
+        this.actualDuration,
+        true,
+      );
+    }
     const next = this.next();
     if (item) {
       if (item.kind === 'movie' || this.endsSeason()) this.library.finish(item);

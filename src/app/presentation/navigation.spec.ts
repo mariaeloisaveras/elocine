@@ -211,6 +211,11 @@ describe('Catálogo e reprodução', () => {
     await harness.fixture.whenStable();
     expect(watch.selected()?.id).toBe('101');
     expect(watch.next()?.id).toBe('102');
+    watch.onPosition({ position: 900, duration: 3600 });
+    harness.detectChanges();
+    const bar = harness.routeNativeElement!.querySelector('.episode-watch-progress')!;
+    expect(bar.getAttribute('aria-valuenow')).toBe('25');
+    expect((bar.firstElementChild as HTMLElement).style.width).toBe('25%');
     await watch.chooseEpisode(second);
     await harness.fixture.whenStable();
     expect(watch.selected()?.id).toBe('102');
@@ -332,6 +337,50 @@ describe('Catálogo e reprodução', () => {
     expect(watch.session()?.item.id).toBe('2');
     expect(watch.session()?.offset).toBe(0);
   });
+  it('stops and unmounts playback when another tab opens a title', async () => {
+    const harness = await RouterTestingHarness.create();
+    const watch = await harness.navigateByUrl('/watch/movie/1', WatchPage);
+    await harness.fixture.whenStable();
+    watch.onPosition({ position: 120, duration: 3600 });
+    watch.onPlaybackOwnerChanged(
+      new StorageEvent('storage', {
+        key: 'elocine.playback-owner',
+        newValue: JSON.stringify({ tab: 'other-tab', request: 'new-title' }),
+      }),
+    );
+    harness.detectChanges();
+    expect(watch.session()).toBeNull();
+    expect(release).toHaveBeenCalledWith('playback');
+    expect(watch.error()).toContain('outra aba');
+    expect(harness.routeNativeElement!.querySelector('video')).toBeNull();
+    expect(TestBed.inject(LibraryStore).resume(item())?.position).toBe(120);
+  });
+
+  it('waits for the old session to stop before retrying live playback and ignores duplicate clicks', async () => {
+    const harness = await RouterTestingHarness.create();
+    const watch = await harness.navigateByUrl('/watch/live/1', WatchPage);
+    await harness.fixture.whenStable();
+    const start = vi.spyOn(TestBed.inject(PlaybackUseCases), 'start');
+    let finishStop!: () => void;
+    stop.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStop = resolve;
+        }),
+    );
+    const retry = watch.retry();
+    await watch.retry();
+    expect(watch.session()).toBeNull();
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(start).not.toHaveBeenCalled();
+    finishStop();
+    await retry;
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start.mock.calls[0][2]).toBe(0);
+    expect(watch.session()).not.toBeNull();
+    expect(watch.switching()).toBe(false);
+  });
+
   it('automatically plays the next episode, crosses seasons and stops at the end of the series', async () => {
     const series = item('series');
     const first = {

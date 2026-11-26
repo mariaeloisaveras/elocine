@@ -215,7 +215,16 @@ export class HomePage {
     this.navigate({ q: '', page: 1 });
   }
   selectCategory(event: Event) {
-    this.navigate({ category: (event.target as HTMLSelectElement).value, page: 1 });
+    const values: Record<string, string | number> = {
+      category: (event.target as HTMLSelectElement).value,
+      page: 1,
+    };
+    if (this.kind() === 'live') {
+      clearTimeout(this.debounce);
+      this.query.set('');
+      values['q'] = '';
+    }
+    this.navigate(values);
   }
   navigate(values: Record<string, string | number>) {
     void this.router.navigate(['/'], {

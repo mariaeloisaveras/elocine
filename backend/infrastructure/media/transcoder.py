@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import time
 
 from .tracks import monitor_tracks
 
@@ -45,6 +46,27 @@ def conversion_command(playback):
         "-user_agent",
         playback.headers.get("User-Agent", "VLC/3.0.20"),
     ]
+    # Only live conversion has no persistent VOD buffer. Reconnect the input,
+    # keeping the same encoder/output alive instead of splicing new MP4 headers.
+    if playback.transcode and playback.buffer is None:
+        command.extend(
+            [
+                "-reconnect",
+                "1",
+                "-reconnect_streamed",
+                "1",
+                "-reconnect_on_network_error",
+                "1",
+                "-reconnect_on_http_error",
+                "429,500,502,503,504",
+                "-reconnect_delay_max",
+                "5",
+                "-reconnect_max_retries",
+                "3",
+                "-reconnect_delay_total_max",
+                "15",
+            ]
+        )
     if playback.seek_offset:
         command.extend(["-ss", str(playback.seek_offset)])
     command += [
@@ -106,6 +128,10 @@ def conversion_chunks(playback, chunk_size=256 * 1024):
                     return
                 if playback.processes:
                     raise ValueError("Uma conversão já está em reprodução.")
+                playback.conversion_started_at = time.monotonic()
+                playback.last_output_at = None
+                playback.output_bytes = 0
+                playback.conversion_done = False
                 playback.conversion_failed = False
                 playback.conversion_error = None
                 playback.upstream_status = None
@@ -117,6 +143,9 @@ def conversion_chunks(playback, chunk_size=256 * 1024):
             for chunk in iter(lambda: process.stdout.read1(chunk_size), b""):
                 if playback.stopped:
                     return
+                with playback.lock:
+                    playback.last_output_at = time.monotonic()
+                    playback.output_bytes += len(chunk)
                 delivered = True
                 yield chunk
             return_code = process.wait()
@@ -124,12 +153,19 @@ def conversion_chunks(playback, chunk_size=256 * 1024):
             if playback.stopped:
                 return
             if return_code == 0:
-                playback.conversion_error = None
+                playback.conversion_done = True
+                if playback.transcode and playback.buffer is None:
+                    playback.conversion_failed = True
+                    playback.conversion_error = (
+                        "A transmissão ao vivo foi encerrada pelo provedor. Tente novamente."
+                    )
+                else:
+                    playback.conversion_error = None
                 return
             retry = (
                 not delivered
                 and attempt < 2
-                and playback.upstream_status in {403, 429, 500, 502, 503, 504}
+                and playback.upstream_status in {429, 500, 502, 503, 504}
             )
             if not retry:
                 playback.conversion_failed = True

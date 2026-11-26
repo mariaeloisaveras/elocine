@@ -449,3 +449,22 @@
     gap: 12px;
   }
 }
+
+.episode-card {
+  position: relative;
+}
+.episode-watch-progress {
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: #ffffff25;
+  overflow: hidden;
+}
+.episode-watch-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--red, #e50914);
+}

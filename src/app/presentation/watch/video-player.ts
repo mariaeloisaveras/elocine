@@ -13,6 +13,8 @@ import {
   viewChild,
 } from '@angular/core';
 import type Hls from 'hls.js';
+
+export const LIVE_STALL_TIMEOUT_MS = 25_000;
 import { MediaItem, Playback, MediaTrack, SubtitleCue } from '../../domain/media';
 import { clampPosition, formatTime } from '../../domain/time';
 import { SubtitleAppearanceStore } from '../../infrastructure/subtitle-appearance.store';
@@ -90,7 +92,18 @@ export class VideoPlayer implements OnDestroy {
   readonly value = computed(() =>
     this.scrubbing() ? this.preview() : (this.pending() ?? this.position()),
   );
-  readonly problem = computed(() => this.externalError() || this.error());
+  readonly problem = computed(() => {
+    // A live server may be blocked by a full browser buffer. Only surface its
+    // error when playback itself is waiting or paused, never over healthy video.
+    const external =
+      /HTTP (401|403)\b/i.test(this.externalError()) ||
+      !this.isLive() ||
+      this.loading() ||
+      this.paused()
+        ? this.externalError()
+        : '';
+    return this.error() || external;
+  });
   private readonly finished = signal(false);
   readonly nextUp = new NextEpisodeController({
     episodeKey: () => {
@@ -117,8 +130,55 @@ export class VideoPlayer implements OnDestroy {
   private hls?: Hls;
   private generation = 0;
   private hideTimer?: ReturnType<typeof setTimeout>;
+  private liveWatchdog?: ReturnType<typeof setInterval>;
+  private watchLive(video: HTMLVideoElement, session: Playback) {
+    clearInterval(this.liveWatchdog);
+    this.liveWatchdog = undefined;
+    if (session.item.kind !== 'live') return;
+    let lastTime = video.currentTime;
+    let lastAdvance = Date.now();
+    let loadingSince: number | null = Date.now();
+    this.liveWatchdog = setInterval(() => {
+      // An external error can disappear; keep monitoring this session.
+      if (this.problem()) return;
+      const now = Date.now();
+      if (this.loading()) loadingSince ??= now;
+      else loadingSince = null;
+      const loadingExpired = loadingSince !== null && now - loadingSince >= LIVE_STALL_TIMEOUT_MS;
+      const currentTime = video.currentTime;
+      if (!loadingExpired && ((!this.loading() && this.paused()) || currentTime > lastTime)) {
+        lastTime = currentTime;
+        lastAdvance = Date.now();
+        return;
+      }
+      lastTime = currentTime;
+      if (loadingExpired || now - lastAdvance >= LIVE_STALL_TIMEOUT_MS) {
+        this.error.set('O canal parou de enviar vídeo. Tente novamente para reconectar ao vivo.');
+        this.loading.set(false);
+        this.pending.set(null);
+        this.visible.set(true);
+        clearInterval(this.liveWatchdog);
+        this.hls?.stopLoad();
+        video.pause();
+      }
+    }, 1000);
+  }
 
   constructor() {
+    effect(() => {
+      const error = this.externalError();
+      const video = this.video()?.nativeElement;
+      if (this.isLive() && video && /HTTP (401|403)\b/i.test(error)) {
+        untracked(() => {
+          this.error.set('');
+          this.loading.set(false);
+          this.pending.set(null);
+          this.visible.set(true);
+          this.hls?.stopLoad();
+          video.pause();
+        });
+      }
+    });
     effect(() => {
       const element = this.video()?.nativeElement;
       const playback = this.playback();
@@ -174,6 +234,7 @@ export class VideoPlayer implements OnDestroy {
     this.visible.set(true);
     video.volume = this.volume();
     video.muted = this.muted();
+    this.watchLive(video, session);
     if (session.is_hls) {
       try {
         const { default: HlsClass } = await import('hls.js');
@@ -187,11 +248,44 @@ export class VideoPlayer implements OnDestroy {
             manifestLoadingMaxRetry: 1,
           });
           this.hls = hls;
+          let networkRecoveries = 0;
+          let mediaRecoveries = 0;
           hls.on(HlsClass.Events.ERROR, (_event, data) => {
+            if (generation !== this.generation) return;
             if (data.fatal) {
+              const status = data.response?.code;
+              const accessDenied = status === 401 || status === 403;
+              if (session.item.kind === 'live') {
+                if (
+                  data.type === HlsClass.ErrorTypes.NETWORK_ERROR &&
+                  !accessDenied &&
+                  networkRecoveries++ < 3
+                ) {
+                  this.loading.set(true);
+                  hls.startLoad();
+                  return;
+                }
+                if (
+                  !accessDenied &&
+                  data.type === HlsClass.ErrorTypes.MEDIA_ERROR &&
+                  mediaRecoveries++ < 2
+                ) {
+                  this.loading.set(true);
+                  hls.recoverMediaError();
+                  return;
+                }
+              }
               this.error.set(
-                'O stream não pôde ser carregado. Tente novamente ou ative a compatibilidade máxima.',
+                accessDenied
+                  ? `O provedor recusou a reprodução (HTTP ${status}). Confira o acesso da conta ao canal e feche outros players ou aparelhos; o limite de conexões pode estar em uso.`
+                  : 'O stream não pôde ser carregado. Tente novamente ou ative a compatibilidade máxima.',
               );
+              if (accessDenied) {
+                this.pending.set(null);
+                this.visible.set(true);
+                hls.stopLoad();
+                video.pause();
+              }
               this.loading.set(false);
             }
           });
@@ -244,6 +338,11 @@ export class VideoPlayer implements OnDestroy {
     }
   }
   onPlaying() {
+    if (this.isLive()) {
+      this.error.set('');
+      const video = this.video()?.nativeElement;
+      if (video) this.watchLive(video, this.playback());
+    }
     this.loading.set(false);
     this.paused.set(false);
     this.finished.set(false);
@@ -255,6 +354,15 @@ export class VideoPlayer implements OnDestroy {
     this.reveal();
   }
   onEnded() {
+    if (this.isLive()) {
+      this.loading.set(false);
+      this.pending.set(null);
+      this.paused.set(true);
+      this.error.set('A transmissão ao vivo foi interrompida. Tente novamente para reconectar.');
+      this.visible.set(true);
+      clearInterval(this.liveWatchdog);
+      return;
+    }
     this.onTime();
     this.loading.set(false);
     this.pending.set(null);
@@ -269,6 +377,8 @@ export class VideoPlayer implements OnDestroy {
     this.visible.set(true);
   }
   onError() {
+    // HLS owns recovery and reports a terminal error after its retries.
+    if (this.isLive() && this.hls) return;
     if (!this.video()?.nativeElement.src) return;
     this.loading.set(false);
     this.error.set('Não foi possível reproduzir o vídeo. Feche outros players e tente novamente.');
@@ -412,6 +522,7 @@ export class VideoPlayer implements OnDestroy {
   ngOnDestroy() {
     ++this.generation;
     clearTimeout(this.hideTimer);
+    clearInterval(this.liveWatchdog);
     this.hls?.destroy();
     const v = this.video()?.nativeElement;
     if (v) {

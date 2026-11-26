@@ -1,4 +1,13 @@
-import { Component, computed, input, output } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  computed,
+  inject,
+  input,
+  output,
+  viewChild,
+} from '@angular/core';
 import { SubtitleAppearanceSettings } from './subtitle-appearance';
 import { MediaTrack } from '../../domain/media';
 
@@ -140,6 +149,15 @@ import { MediaTrack } from '../../domain/media';
   `,
 })
 export class TrackMenu {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly menu = viewChild<ElementRef<HTMLDetailsElement>>('menu');
+  @HostListener('document:click', ['$event'])
+  onOutsideClick(event: MouseEvent) {
+    const menu = this.menu()?.nativeElement;
+    if (menu?.open && !event.composedPath().includes(this.host.nativeElement)) {
+      menu.open = false;
+    }
+  }
   readonly tracks = input<MediaTrack[]>([]);
   readonly ready = input(false);
   readonly compatibility = input(true);

@@ -10,6 +10,7 @@ import {
   Details,
   DownloadProgress,
   Playback,
+  PlaybackEndedError,
   PlaybackRepository,
   PlaybackRequest,
   TrackSelection,
@@ -29,6 +30,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    if (response.status === 404 && /^\/playbacks\/[^/]+\/progress$/.test(path))
+      throw new PlaybackEndedError('A reprodução foi encerrada ou aberta em outra aba.');
     throw new Error(
       typeof body.detail === 'string' ? body.detail : 'Não foi possível concluir. Tente novamente.',
     );

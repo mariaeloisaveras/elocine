@@ -4,6 +4,20 @@ import { TrackMenu } from './track-menu';
 
 afterEach(() => TestBed.resetTestingModule());
 describe('Menu de áudio e legendas', () => {
+  it('closes on outside clicks and preserves clicks inside the menu', () => {
+    const fixture = TestBed.createComponent(TrackMenu);
+    fixture.detectChanges();
+    const menu = fixture.nativeElement.querySelector('details') as HTMLDetailsElement;
+    menu.open = true;
+    menu
+      .querySelector('h3')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(menu.open).toBe(true);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(menu.open).toBe(false);
+    fixture.destroy();
+  });
+
   it('labels languages, offers subtitle off and disables unsupported image captions', async () => {
     const fixture = TestBed.createComponent(TrackMenu);
     fixture.componentRef.setInput('ready', true);

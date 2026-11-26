@@ -73,6 +73,21 @@ describe('Programação ao vivo', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('aside')).toBeNull();
   });
+  it('keeps the guide open for internal clicks and closes when clicking outside', async () => {
+    const fixture = await create('player');
+    fixture.nativeElement.querySelector('.guide-toggle').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    fixture.nativeElement
+      .querySelector('article')
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(fixture.componentInstance.open()).toBe(true);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.open()).toBe(false);
+    expect(fixture.nativeElement.querySelector('aside')).toBeNull();
+  });
+
   it('moves to the next programme at its boundary and handles unavailable metadata', async () => {
     const fixture = await create('player');
     vi.mocked(Date.now).mockReturnValue((now + 1800) * 1000);

@@ -1,8 +1,37 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoPlayer } from './video-player';
+import { CatalogUseCases } from '../../application/catalog.use-cases';
+import { VideoPlayer, LIVE_STALL_TIMEOUT_MS } from './video-player';
 import { SubtitleAppearanceStore } from '../../infrastructure/subtitle-appearance.store';
 import { Playback } from '../../domain/media';
+
+const hlsMock = vi.hoisted(() => ({
+  handlers: new Map<
+    string,
+    (event: string, data: { fatal: boolean; type: string; response?: { code: number } }) => void
+  >(),
+  startLoad: vi.fn(),
+  stopLoad: vi.fn(),
+  recoverMediaError: vi.fn(),
+}));
+vi.mock('hls.js', () => ({
+  default: class {
+    static isSupported() {
+      return true;
+    }
+    static Events = { ERROR: 'error' };
+    static ErrorTypes = { NETWORK_ERROR: 'networkError', MEDIA_ERROR: 'mediaError' };
+    on(event: string, callback: (event: string, data: { fatal: boolean; type: string }) => void) {
+      hlsMock.handlers.set(event, callback);
+    }
+    loadSource() {}
+    attachMedia() {}
+    destroy() {}
+    stopLoad = hlsMock.stopLoad;
+    startLoad = hlsMock.startLoad;
+    recoverMediaError = hlsMock.recoverMediaError;
+  },
+}));
 
 const session: Playback = {
   id: 'session',
@@ -30,6 +59,10 @@ const session: Playback = {
 };
 describe('Player integrado', () => {
   beforeEach(() => {
+    hlsMock.handlers.clear();
+    hlsMock.startLoad.mockClear();
+    hlsMock.stopLoad.mockClear();
+    hlsMock.recoverMediaError.mockClear();
     localStorage.removeItem('elocine.subtitle-appearance');
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
@@ -49,6 +82,199 @@ describe('Player integrado', () => {
     await fixture.whenStable();
     return fixture;
   }
+  it('recovers live HLS failures before showing an error and bounds retries', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: CatalogUseCases,
+          useValue: { schedule: vi.fn().mockResolvedValue({ programmes: [] }) },
+        },
+      ],
+    });
+    hlsMock.startLoad.mockClear();
+    hlsMock.recoverMediaError.mockClear();
+    const fixture = await create();
+    fixture.componentRef.setInput('playback', {
+      ...session,
+      is_hls: true,
+      compatibility: false,
+      item: { ...session.item, kind: 'live' },
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(hlsMock.handlers.has('error')).toBe(true));
+    const fail = hlsMock.handlers.get('error')!;
+    fail('error', { fatal: true, type: 'networkError' });
+    expect(hlsMock.startLoad).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.error()).toBe('');
+    fail('error', { fatal: true, type: 'mediaError' });
+    expect(hlsMock.recoverMediaError).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.error()).toBe('');
+    for (let attempt = 0; attempt < 3; attempt++)
+      fail('error', { fatal: true, type: 'networkError' });
+    expect(hlsMock.startLoad).toHaveBeenCalledTimes(3);
+    expect(fixture.componentInstance.error()).not.toBe('');
+    fixture.destroy();
+  });
+
+  it.each([401, 403])(
+    'stops live HLS access refusals (HTTP %s) without reconnecting',
+    async (status) => {
+      TestBed.configureTestingModule({
+        providers: [
+          {
+            provide: CatalogUseCases,
+            useValue: { schedule: vi.fn().mockResolvedValue({ programmes: [] }) },
+          },
+        ],
+      });
+      const fixture = await create();
+      fixture.componentRef.setInput('playback', {
+        ...session,
+        is_hls: true,
+        compatibility: false,
+        item: { ...session.item, kind: 'live' },
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await vi.waitFor(() => expect(hlsMock.handlers.has('error')).toBe(true));
+      const video = fixture.nativeElement.querySelector('video') as HTMLVideoElement;
+      const pause = vi.spyOn(video, 'pause');
+      pause.mockClear();
+      hlsMock.handlers.get('error')!('error', {
+        fatal: true,
+        type: 'networkError',
+        response: { code: status },
+      });
+      fixture.detectChanges();
+      expect(hlsMock.startLoad).not.toHaveBeenCalled();
+      expect(hlsMock.recoverMediaError).not.toHaveBeenCalled();
+      expect(hlsMock.stopLoad).toHaveBeenCalledTimes(1);
+      expect(pause).toHaveBeenCalled();
+      expect(fixture.componentInstance.problem()).toContain(`HTTP ${status}`);
+      expect(fixture.componentInstance.problem()).toContain('limite de conexões');
+      expect(fixture.componentInstance.loading()).toBe(false);
+      expect(fixture.nativeElement.querySelector('.loading-overlay')).toBeNull();
+      fixture.destroy();
+    },
+  );
+
+  async function createLive() {
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: CatalogUseCases,
+          useValue: { schedule: vi.fn().mockResolvedValue({ programmes: [] }) },
+        },
+      ],
+    });
+    const fixture = await create();
+    vi.useFakeTimers();
+    fixture.componentRef.setInput('playback', {
+      ...session,
+      item: { ...session.item, kind: 'live' },
+    });
+    fixture.detectChanges();
+    return fixture;
+  }
+  it('ends indefinite live buffering and offers retry when video stops advancing', async () => {
+    const fixture = await createLive();
+    await vi.advanceTimersByTimeAsync(LIVE_STALL_TIMEOUT_MS);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.loading()).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('O canal parou de enviar vídeo');
+    expect(fixture.nativeElement.textContent).toContain('Tentar novamente');
+    expect(fixture.nativeElement.querySelector('.loading-overlay')).toBeNull();
+    fixture.destroy();
+  });
+  it('limits the preparing overlay even if the media clock keeps advancing', async () => {
+    const fixture = await createLive();
+    const video = fixture.nativeElement.querySelector('video') as HTMLVideoElement;
+    for (let second = 1; second <= 26; second++) {
+      video.currentTime = second;
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    fixture.detectChanges();
+    expect(fixture.componentInstance.loading()).toBe(false);
+    expect(fixture.componentInstance.error()).toContain('parou de enviar vídeo');
+    expect(fixture.nativeElement.querySelector('.loading-overlay')).toBeNull();
+    fixture.destroy();
+  });
+  it('continues stall monitoring after an external error clears', async () => {
+    const fixture = await createLive();
+    fixture.componentRef.setInput('externalError', 'Falha temporária');
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(1000);
+    fixture.componentRef.setInput('externalError', '');
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(LIVE_STALL_TIMEOUT_MS);
+    expect(fixture.componentInstance.error()).toContain('parou de enviar vídeo');
+    fixture.destroy();
+  });
+
+  it('does not show a server warning over resumed live video', async () => {
+    const fixture = await createLive();
+    const player = fixture.componentInstance;
+    fixture.componentRef.setInput(
+      'externalError',
+      'O canal ficou sem enviar vídeo por 25 segundos.',
+    );
+    fixture.detectChanges();
+    player.onWaiting();
+    expect(player.problem()).not.toBe('');
+    player.error.set('Falha anterior');
+    player.onPlaying();
+    fixture.detectChanges();
+    expect(player.problem()).toBe('');
+    expect(fixture.nativeElement.querySelector('.player-error')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.loading-overlay')).toBeNull();
+    player.onWaiting();
+    expect(player.problem()).not.toBe('');
+    fixture.destroy();
+  });
+
+  it.each([401, 403])('pauses live playback when the server reports HTTP %s', async (status) => {
+    const fixture = await createLive();
+    fixture.componentInstance.onPlaying();
+    const video = fixture.nativeElement.querySelector('video') as HTMLVideoElement;
+    const pause = vi.spyOn(video, 'pause');
+    pause.mockClear();
+    fixture.componentRef.setInput(
+      'externalError',
+      `O provedor recusou a reprodução (HTTP ${status}).`,
+    );
+    fixture.detectChanges();
+    expect(pause).toHaveBeenCalled();
+    expect(fixture.componentInstance.problem()).toContain(`HTTP ${status}`);
+    expect(fixture.componentInstance.loading()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.player-error')).not.toBeNull();
+    fixture.destroy();
+  });
+
+  it('does not time out healthy live playback or an intentional pause', async () => {
+    const fixture = await createLive();
+    const video = fixture.nativeElement.querySelector('video') as HTMLVideoElement;
+    fixture.componentInstance.onPlaying();
+    for (let second = 1; second <= 30; second++) {
+      video.currentTime = second;
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    expect(fixture.componentInstance.error()).toBe('');
+    fixture.componentInstance.onPause();
+    await vi.advanceTimersByTimeAsync(LIVE_STALL_TIMEOUT_MS + 1000);
+    expect(fixture.componentInstance.error()).toBe('');
+    fixture.destroy();
+  });
+  it('shows a reconnect error when a live stream ends rather than treating it as completed', async () => {
+    const fixture = await createLive();
+    const ended = vi.fn();
+    fixture.componentInstance.ended.subscribe(ended);
+    fixture.componentInstance.onEnded();
+    expect(fixture.componentInstance.error()).toContain('interrompida');
+    expect(ended).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
   it('keeps the total timeline inside the video container with no iframe or duplicate native timeline', async () => {
     const fixture = await create();
     const root: HTMLElement = fixture.nativeElement;

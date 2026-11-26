@@ -78,9 +78,24 @@ class MediaProxy:
         )
         if playback:
             if not playback.buffer:
-                progress["error"] = (
-                    playback.conversion_error if playback.conversion_failed else None
-                )
+                with playback.lock:
+                    progress["size"] = playback.output_bytes
+                    progress["done"] = playback.conversion_done
+                    progress["error"] = (
+                        playback.conversion_error if playback.conversion_failed else None
+                    )
+                    last_output = playback.last_output_at or playback.conversion_started_at
+                    if (
+                        playback.transcode
+                        and not playback.stopped
+                        and playback.last_output_at is None
+                        and last_output is not None
+                        and time.monotonic() - last_output >= 25
+                        and not progress["error"]
+                    ):
+                        progress["error"] = (
+                            "O canal não iniciou o envio de vídeo em 25 segundos. Tente novamente."
+                        )
             with playback.lock:
                 progress.update(
                     media_tracks=list(playback.tracks), tracks_ready=playback.tracks_ready
